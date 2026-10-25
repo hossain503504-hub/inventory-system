@@ -3,16 +3,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
 from datetime import datetime
-from google import genai
+import google.generativeai as genai
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
 
 DATABASE = 'inventory.db'
 
-# জেমিনি এআই ক্লায়েন্ট সেটআপ (রেন্ডার এনভায়রনমেন্ট ভেরিয়েবল থেকে এপিআই কি পড়বে)
+# জেমিনি এআই কনফিগারেশন
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -553,10 +553,8 @@ def ask_ai():
     """
     
     try:
-        response = ai_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=context,
-        )
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(context)
         ai_reply = response.text
     except Exception as e:
         ai_reply = f"Error communicating with Gemini AI: {str(e)}"
