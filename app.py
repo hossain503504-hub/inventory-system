@@ -217,7 +217,7 @@ HTML_TEMPLATE = '''
 
                 <!-- ডারাজ স্টাইল কার্ট সেকশন -->
                 <div id="cart-section" class="cart-floating" style="display: none;">
-                    <h3 style="margin-top:0;">🛒 গোডাউন থেকে মাল বের করার কার্ট (Batch Cart)</h3>
+                    <h3 style="margin-top:0;">🛒 (Batch Cart)</h3>
                     <table>
                         <thead>
                             <tr>
@@ -234,7 +234,7 @@ HTML_TEMPLATE = '''
                     <form action="/cart_deduct" method="POST" onsubmit="prepareCartSubmission()" style="margin-top: 15px;">
                         <input type="hidden" name="cart_data" id="cart_data_input">
                         <button type="submit" class="btn" style="background: #d35400; width: 100%; padding: 12px; font-size: 15px;">
-                            ✅ একসাথে সব পণ্য স্টক থেকে মাইনাস করুন (Confirm Batch Out)
+                            ✅ (Confirm Batch Out)
                         </button>
                     </form>
                 </div>
@@ -601,7 +601,7 @@ def cart_deduct():
                 
         conn.commit()
         conn.close()
-        flash('কার্টের সকল পণ্য সফলভাবে স্টক থেকে মাইনাস করা হয়েছে!')
+        flash('All items in the cart have been successfully deducted from stock.!')
     except Exception as e:
         flash(f'ত্রুটি ঘটেছে: {str(e)}')
         
