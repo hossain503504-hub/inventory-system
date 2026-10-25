@@ -12,7 +12,7 @@ DATABASE = 'inventory.db'
 
 # জেমিনি এআই ক্লায়েন্ট সেটআপ (এনভায়রনমেন্ট ভেরিয়েবল বা সরাসরি আপনার এপিআই কি এখানে বসাতে পারেন)
 # রেন্ডারে ডিপ্লয় করলে Environment Variables-এ GEMINI_API_KEY সেট করে নিতে হবে
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent")
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 def get_db():
