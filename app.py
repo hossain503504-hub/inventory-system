@@ -1,23 +1,20 @@
 from flask import Flask, render_template_string, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
 import os
 import json
 from datetime import datetime
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import google.generativeai as genai
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
 
-DATABASE = 'inventory.db'
-
-# জেমিনি এআই কনফিগারেশন
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
-genai.configure(api_key=GEMINI_API_KEY)
+# ক্লাউড ডাটাবেজ কানেকশন (Render Environment থেকে DATABASE_URL নেবে)
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 def init_db():
@@ -25,7 +22,7 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             brand TEXT NOT NULL,
             size TEXT NOT NULL,
@@ -35,7 +32,7 @@ def init_db():
     ''')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             role TEXT NOT NULL
@@ -43,47 +40,52 @@ def init_db():
     ''')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_email TEXT NOT NULL,
             product_name TEXT NOT NULL,
             brand TEXT NOT NULL,
             size TEXT NOT NULL,
             quantity_deducted INTEGER NOT NULL,
             total_price REAL NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS stock_in_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             admin_email TEXT NOT NULL,
             product_name TEXT NOT NULL,
             brand TEXT NOT NULL,
             size TEXT NOT NULL,
             quantity_added INTEGER NOT NULL,
             price_per_unit REAL NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
     cursor.execute("SELECT * FROM users WHERE email = 'admin@system.com'")
     if not cursor.fetchone():
         admin_pass = generate_password_hash('admin123')
-        cursor.execute("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", 
+        cursor.execute("INSERT INTO users (email, password, role) VALUES (%s, %s, %s)", 
                        ('admin@system.com', admin_pass, 'admin'))
         
     cursor.execute("SELECT * FROM users WHERE email = 'emp@system.com'")
     if not cursor.fetchone():
         emp_pass = generate_password_hash('emp123')
-        cursor.execute("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", 
+        cursor.execute("INSERT INTO users (email, password, role) VALUES (%s, %s, %s)", 
                        ('emp@system.com', emp_pass, 'employee'))
                        
     conn.commit()
+    cursor.close()
     conn.close()
+
+# Gemini API Key 
+GEMINI_API_KEY = "AQ.Ab8RN6JxaF1kVNjPPmO3yuXObeKM-xD-Kz0OuCjG0PLKFInLeA"
+genai.configure(api_key=GEMINI_API_KEY)
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -120,7 +122,7 @@ HTML_TEMPLATE = '''
         {% if session.get('user') %}
             <div class="header">
                 <div>
-                    <h2>📦 AI Inventory System</h2>
+                    <h2>📦 AI Inventory System (Cloud DB)</h2>
                     <div class="user-info">User: <b>{{ session['user'] }}</b> (<i>{{ session['role'] }}</i>)</div>
                 </div>
                 <a href="/logout" class="btn-logout">Logout</a>
@@ -215,31 +217,31 @@ HTML_TEMPLATE = '''
                     </tbody>
                 </table>
 
-                <!-- ডারাজ স্টাইল কার্ট সেকশন -->
+                <!-- Daraz Style Cart Section -->
                 <div id="cart-section" class="cart-floating" style="display: none;">
-                    <h3 style="margin-top:0;">🛒 (Batch Cart)</h3>
+                    <h3 style="margin-top:0;">🛒 Warehouse Checkout Cart (Batch Cart)</h3>
                     <table>
                         <thead>
                             <tr>
-                                <th>পণ্যের বিবরণ</th>
-                                <th style="width: 100px;">পরিমাণ (Qty)</th>
-                                <th style="width: 80px;">অ্যাকশন</th>
+                                <th>Product Details</th>
+                                <th style="width: 100px;">Quantity</th>
+                                <th style="width: 80px;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="cart-table-body">
-                            <!-- জাভাস্ক্রিপ্ট দিয়ে আইটেমগুলো এখানে যোগ হবে -->
+                            <!-- Items will be added here via JavaScript -->
                         </tbody>
                     </table>
 
                     <form action="/cart_deduct" method="POST" onsubmit="prepareCartSubmission()" style="margin-top: 15px;">
                         <input type="hidden" name="cart_data" id="cart_data_input">
                         <button type="submit" class="btn" style="background: #d35400; width: 100%; padding: 12px; font-size: 15px;">
-                            ✅ (Confirm Batch Out)
+                            ✅ Confirm Batch Out (Deduct All from Stock)
                         </button>
                     </form>
                 </div>
 
-                <!-- কার্ট ম্যানেজমেন্ট স্ক্রিপ্ট -->
+                <!-- Cart Management Script -->
                 <script>
                     let cart = [];
 
@@ -249,7 +251,7 @@ HTML_TEMPLATE = '''
                             if (existing.qty < maxQty) {
                                 existing.qty += 1;
                             } else {
-                                alert("স্টকে আর পর্যাপ্ত পণ্য নেই!");
+                                alert("Not enough stock available!");
                             }
                         } else {
                             cart.push({ id: id, name: name, qty: 1, maxQty: maxQty, price: price });
@@ -262,7 +264,7 @@ HTML_TEMPLATE = '''
                         if (item) {
                             let newQty = parseInt(val);
                             if (newQty > item.maxQty) {
-                                alert("স্টকের চেয়ে বেশি পরিমাণ দেওয়া যাবে না!");
+                                alert("Cannot exceed available stock quantity!");
                                 item.qty = item.maxQty;
                             } else if (newQty < 1) {
                                 item.qty = 1;
@@ -384,12 +386,12 @@ HTML_TEMPLATE = '''
 
             {% elif page == 'ai_advisor' and session['role'] == 'admin' %}
                 <h3>🤖 Gemini AI Stock & Business Advisor</h3>
-                <p style="font-size: 13px; color: #555;">আপনার ইনভেন্টরি ও সেলস ডাটা বিশ্লেষণ করে জেমিনি এআই থেকে যেকোনো পরামর্শ বা প্রশ্ন করতে পারেন।</p>
+                <p style="font-size: 13px; color: #555;">Analyze inventory and sales data using Gemini AI and ask any business questions.</p>
                 
                 <form action="/ask_ai" method="POST" class="ai-box">
                     <div class="form-group">
-                        <label><b>Ask Gemini AI (প্রশ্ন বা নির্দেশনা লিখুন):</b></label>
-                        <textarea name="ai_prompt" rows="3" placeholder="যেমন: এই মাসে কোন ব্র্যান্ডের ডায়াপার সবচেয়ে বেশি বিক্রি হয়েছে? বা কোন ব্র্যান্ডের স্টক বাড়ানো উচিত?" required></textarea>
+                        <label><b>Ask Gemini AI (Type your question or prompt):</b></label>
+                        <textarea name="ai_prompt" rows="3" placeholder="e.g., Which brand diaper sold the most this month? Or which brand stock should be increased?" required></textarea>
                     </div>
                     <button type="submit" class="btn" style="background: #8e44ad;">Ask AI Assistant</button>
                 </form>
@@ -492,13 +494,16 @@ def index():
     
     search_query = request.args.get('search', '').strip()
     conn = get_db()
+    cursor = conn.cursor()
     
     if search_query:
-        products = conn.execute("SELECT * FROM products WHERE brand LIKE ? OR name LIKE ?", 
-                                ('%' + search_query + '%', '%' + search_query + '%')).fetchall()
+        cursor.execute("SELECT * FROM products WHERE brand ILIKE %s OR name ILIKE %s", 
+                       ('%' + search_query + '%', '%' + search_query + '%'))
     else:
-        products = conn.execute('SELECT * FROM products').fetchall()
-        
+        cursor.execute('SELECT * FROM products')
+    products = cursor.fetchall()
+    
+    cursor.close()
     conn.close()
     return render_template_string(HTML_TEMPLATE, page='dashboard', products=products, active_tab='inventory', search_query=search_query)
 
@@ -508,7 +513,10 @@ def login():
     password = request.form['password']
     
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE email = %s', (email,))
+    user = cursor.fetchone()
+    cursor.close()
     conn.close()
     
     if user and check_password_hash(user['password'], password):
@@ -537,38 +545,16 @@ def add_product():
     price = float(request.form['price'])
     
     conn = get_db()
-    conn.execute('INSERT INTO products (name, brand, size, quantity, price) VALUES (?, ?, ?, ?, ?)', (name, brand, size, quantity, price))
-    conn.execute('INSERT INTO stock_in_logs (admin_email, product_name, brand, size, quantity_added, price_per_unit) VALUES (?, ?, ?, ?, ?, ?)',
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO products (name, brand, size, quantity, price) VALUES (%s, %s, %s, %s, %s)', (name, brand, size, quantity, price))
+    cursor.execute('INSERT INTO stock_in_logs (admin_email, product_name, brand, size, quantity_added, price_per_unit) VALUES (%s, %s, %s, %s, %s, %s)',
                  (session['user'], name, brand, size, quantity, price))
     conn.commit()
+    cursor.close()
     conn.close()
     flash('Product added successfully!')
     return redirect(url_for('index'))
 
-@app.route('/deduct_stock/<int:id>', methods=['POST'])
-def deduct_stock(id):
-    if 'user' not in session:
-        return redirect(url_for('index'))
-        
-    amount = int(request.form['amount'])
-    conn = get_db()
-    product = conn.execute('SELECT * FROM products WHERE id = ?', (id,)).fetchone()
-    
-    if product and product['quantity'] >= amount:
-        new_qty = product['quantity'] - amount
-        total_sale_price = amount * product['price']
-        conn.execute('UPDATE products SET quantity = ? WHERE id = ?', (new_qty, id))
-        conn.execute('INSERT INTO logs (user_email, product_name, brand, size, quantity_deducted, total_price) VALUES (?, ?, ?, ?, ?, ?)',
-                     (session['user'], product['name'], product['brand'], product['size'], amount, total_sale_price))
-        conn.commit()
-        flash('Stock deducted successfully!')
-    else:
-        flash('Not enough stock!')
-        
-    conn.close()
-    return redirect(url_for('index'))
-
-# নতুন কার্ট ব্যাচ ডিডাকশন রাউট (Daraz style add to cart)
 @app.route('/cart_deduct', methods=['POST'])
 def cart_deduct():
     if 'user' not in session:
@@ -576,7 +562,7 @@ def cart_deduct():
         
     cart_data = request.form.get('cart_data')
     if not cart_data:
-        flash('কার্ট খালি বা কোনো পণ্য সিলেক্ট করা হয়নি!')
+        flash('Cart is empty or no products selected!')
         return redirect(url_for('index'))
         
     try:
@@ -588,22 +574,24 @@ def cart_deduct():
             p_id = item['id']
             deduct_qty = int(item['qty'])
             
-            product = cursor.execute('SELECT * FROM products WHERE id = ?', (p_id,)).fetchone()
+            cursor.execute('SELECT * FROM products WHERE id = %s', (p_id,))
+            product = cursor.fetchone()
             if product and product['quantity'] >= deduct_qty:
                 new_qty = product['quantity'] - deduct_qty
                 total_sale_price = deduct_qty * product['price']
                 
-                cursor.execute('UPDATE products SET quantity = ? WHERE id = ?', (new_qty, p_id))
-                cursor.execute('INSERT INTO logs (user_email, product_name, brand, size, quantity_deducted, total_price) VALUES (?, ?, ?, ?, ?, ?)',
+                cursor.execute('UPDATE products SET quantity = %s WHERE id = %s', (new_qty, p_id))
+                cursor.execute('INSERT INTO logs (user_email, product_name, brand, size, quantity_deducted, total_price) VALUES (%s, %s, %s, %s, %s, %s)',
                              (session['user'], product['name'], product['brand'], product['size'], deduct_qty, total_sale_price))
             else:
-                flash(f"পণ্য '{product['name']}' এর পর্যাপ্ত স্টক নেই!")
+                flash(f"Product '{product['name']}' does not have enough stock!")
                 
         conn.commit()
+        cursor.close()
         conn.close()
-        flash('All items in the cart have been successfully deducted from stock.!')
+        flash('All cart products successfully deducted from stock!')
     except Exception as e:
-        flash(f'ত্রুটি ঘটেছে: {str(e)}')
+        flash(f'An error occurred: {str(e)}')
         
     return redirect(url_for('index'))
 
@@ -616,26 +604,37 @@ def reports():
     current_month_str = datetime.now().strftime('%Y-%m')
     
     conn = get_db()
-    stock_in = conn.execute("SELECT SUM(quantity_added) as qty, SUM(quantity_added * price_per_unit) as val FROM stock_in_logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
-    monthly_in_qty = stock_in['qty'] if stock_in['qty'] else 0
-    monthly_in_val = stock_in['val'] if stock_in['val'] else 0.0
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT SUM(quantity_added) as qty, SUM(quantity_added * price_per_unit) as val FROM stock_in_logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s", (current_month_str,))
+    stock_in = cursor.fetchone()
+    monthly_in_qty = stock_in['qty'] if stock_in and stock_in['qty'] else 0
+    monthly_in_val = stock_in['val'] if stock_in and stock_in['val'] else 0.0
 
-    stock_out = conn.execute("SELECT SUM(quantity_deducted) as qty, SUM(total_price) as val FROM logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
-    monthly_out_qty = stock_out['qty'] if stock_out['qty'] else 0
-    monthly_out_val = stock_out['val'] if stock_out['val'] else 0.0
+    cursor.execute("SELECT SUM(quantity_deducted) as qty, SUM(total_price) as val FROM logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s", (current_month_str,))
+    stock_out = cursor.fetchone()
+    monthly_out_qty = stock_out['qty'] if stock_out and stock_out['qty'] else 0
+    monthly_out_val = stock_out['val'] if stock_out and stock_out['val'] else 0.0
 
-    products = conn.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products").fetchone()
-    total_stock_qty = products['qty'] if products['qty'] else 0
-    total_stock_val = products['val'] if products['val'] else 0.0
+    cursor.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products")
+    products = cursor.fetchone()
+    total_stock_qty = products['qty'] if products and products['qty'] else 0
+    total_stock_val = products['val'] if products and products['val'] else 0.0
 
-    brands_list = conn.execute("SELECT DISTINCT brand FROM products UNION SELECT DISTINCT brand FROM stock_in_logs UNION SELECT DISTINCT brand FROM logs").fetchall()
+    cursor.execute("SELECT DISTINCT brand FROM products UNION SELECT DISTINCT brand FROM stock_in_logs UNION SELECT DISTINCT brand FROM logs")
+    brands_list = cursor.fetchall()
     
     brand_reports = []
     for b_row in brands_list:
         b_name = b_row['brand']
-        cur = conn.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products WHERE brand = ?", (b_name,)).fetchone()
-        in_res = conn.execute("SELECT SUM(quantity_added) as qty FROM stock_in_logs WHERE brand = ? AND strftime('%Y-%m', timestamp) = ?", (b_name, current_month_str)).fetchone()
-        out_res = conn.execute("SELECT SUM(quantity_deducted) as qty FROM logs WHERE brand = ? AND strftime('%Y-%m', timestamp) = ?", (b_name, current_month_str)).fetchone()
+        cursor.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products WHERE brand = %s", (b_name,))
+        cur = cursor.fetchone()
+        
+        cursor.execute("SELECT SUM(quantity_added) as qty FROM stock_in_logs WHERE brand = %s AND TO_CHAR(timestamp, 'YYYY-MM') = %s", (b_name, current_month_str))
+        in_res = cursor.fetchone()
+        
+        cursor.execute("SELECT SUM(quantity_deducted) as qty FROM logs WHERE brand = %s AND TO_CHAR(timestamp, 'YYYY-MM') = %s", (b_name, current_month_str))
+        out_res = cursor.fetchone()
         
         brand_reports.append({
             'brand': b_name,
@@ -645,7 +644,9 @@ def reports():
             'out_qty': out_res['qty'] if out_res and out_res['qty'] else 0
         })
 
-    logs = conn.execute('SELECT * FROM logs ORDER BY timestamp DESC').fetchall()
+    cursor.execute('SELECT * FROM logs ORDER BY timestamp DESC')
+    logs = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     return render_template_string(HTML_TEMPLATE, page='reports', 
@@ -669,8 +670,12 @@ def ask_ai():
     user_prompt = request.form['ai_prompt']
     
     conn = get_db()
-    products = conn.execute("SELECT brand, name, size, quantity, price FROM products").fetchall()
-    logs = conn.execute("SELECT brand, product_name, size, quantity_deducted, timestamp FROM logs ORDER BY timestamp DESC LIMIT 20").fetchall()
+    cursor = conn.cursor()
+    cursor.execute("SELECT brand, name, size, quantity, price FROM products")
+    products = cursor.fetchall()
+    cursor.execute("SELECT brand, product_name, size, quantity_deducted, timestamp FROM logs ORDER BY timestamp DESC LIMIT 20")
+    logs = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     stock_summary = "\n".join([f"- Brand: {p['brand']}, Product: {p['name']}, Size: {p['size']}, Qty: {p['quantity']}, Price: {p['price']}" for p in products])
@@ -684,7 +689,7 @@ def ask_ai():
     Here is the recent sales history:
     {sales_summary if sales_summary else "No sales yet."}
     
-    Please answer the admin's question in professional and helpful Bengali (বাংলা):
+    Please answer the admin's question in professional and helpful English:
     Question: {user_prompt}
     """
     
@@ -702,7 +707,10 @@ def employees():
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     conn = get_db()
-    employees = conn.execute('SELECT * FROM users').fetchall()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users')
+    employees = cursor.fetchall()
+    cursor.close()
     conn.close()
     return render_template_string(HTML_TEMPLATE, page='employees', employees=employees, active_tab='employees')
 
@@ -715,8 +723,10 @@ def add_employee():
     
     try:
         conn = get_db()
-        conn.execute('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', (email, password, 'employee'))
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO users (email, password, role) VALUES (%s, %s, %s)', (email, password, 'employee'))
         conn.commit()
+        cursor.close()
         conn.close()
         flash('Employee added successfully!')
     except:
@@ -728,8 +738,10 @@ def delete_user(id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     conn = get_db()
-    conn.execute('DELETE FROM users WHERE id = ?', (id,))
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM users WHERE id = %s', (id,))
     conn.commit()
+    cursor.close()
     conn.close()
     flash('User deleted successfully!')
     return redirect(url_for('employees'))
@@ -748,12 +760,14 @@ def update_admin():
     new_pass = request.form['password']
     
     conn = get_db()
+    cursor = conn.cursor()
     if new_pass:
         hashed_pass = generate_password_hash(new_pass)
-        conn.execute('UPDATE users SET email = ?, password = ? WHERE email = ?', (new_email, hashed_pass, session['user']))
+        cursor.execute('UPDATE users SET email = %s, password = %s WHERE email = %s', (new_email, hashed_pass, session['user']))
     else:
-        conn.execute('UPDATE users SET email = ? WHERE email = ?', (new_email, session['user']))
+        cursor.execute('UPDATE users SET email = %s WHERE email = %s', (new_email, session['user']))
     conn.commit()
+    cursor.close()
     conn.close()
     
     session['user'] = new_email
