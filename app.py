@@ -80,7 +80,7 @@ def init_db():
     conn.close()
 
 # Gemini API Key 
-GEMINI_API_KEY = "AQ.Ab8RN6JxaF1kVNjPPmO3yuXObeKM-xD-Kz0OuCjG0PLKFInLeA"
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
 genai.configure(api_key=GEMINI_API_KEY)
 
 HTML_TEMPLATE = '''
