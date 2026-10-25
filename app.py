@@ -21,6 +21,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            brand TEXT NOT NULL,
             size TEXT NOT NULL,
             quantity INTEGER NOT NULL,
             price REAL NOT NULL
@@ -39,6 +40,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_email TEXT NOT NULL,
             product_name TEXT NOT NULL,
+            brand TEXT NOT NULL,
             size TEXT NOT NULL,
             quantity_deducted INTEGER NOT NULL,
             total_price REAL NOT NULL,
@@ -50,6 +52,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             admin_email TEXT NOT NULL,
             product_name TEXT NOT NULL,
+            brand TEXT NOT NULL,
             size TEXT NOT NULL,
             quantity_added INTEGER NOT NULL,
             price_per_unit REAL NOT NULL,
@@ -78,7 +81,7 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Inventory Management System</title>
+    <title>Brand-Based Inventory Management System</title>
     <style>
         body { font-family: sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -100,6 +103,7 @@ HTML_TEMPLATE = '''
         .nav-tabs a.active { background: #3498db; color: white; }
         .stats-card { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 14px; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
         @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -123,9 +127,9 @@ HTML_TEMPLATE = '''
             {% endwith %}
 
             <div class="nav-tabs">
-                <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">Stock & Sell</a>
+                <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">Stock & Search</a>
                 {% if session['role'] == 'admin' %}
-                    <a href="/reports" class="{% if active_tab == 'reports' %}active{% endif %}">Monthly & Financial Reports</a>
+                    <a href="/reports" class="{% if active_tab == 'reports' %}active{% endif %}">Reports & Financials</a>
                     <a href="/employees" class="{% if active_tab == 'employees' %}active{% endif %}">Manage Employees</a>
                     <a href="/settings" class="{% if active_tab == 'settings' %}active{% endif %}">Admin Settings</a>
                 {% endif %}
@@ -133,10 +137,15 @@ HTML_TEMPLATE = '''
 
             {% if page == 'dashboard' %}
                 {% if session['role'] == 'admin' %}
-                    <h3>➕ Add New Diaper / Product</h3>
-                    <form action="/add_product" method="POST" style="margin-bottom: 20px;">
+                    <h3>➕ Add New Product / Brand Item</h3>
+                    <form action="/add_product" method="POST" style="margin-bottom: 20px; background: #fdfdfd; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div class="form-group">
+                            <input type="text" name="name" placeholder="Product Name (e.g. Baby Diaper)" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" name="brand" placeholder="Company/Brand Name (e.g. Mamy Poko Pants, Huggies, Thai)" required>
+                        </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <input type="text" name="name" placeholder="Product Name" required style="flex: 2;">
                             <select name="size" required style="flex: 1;">
                                 <option value="" disabled selected>Size</option>
                                 <option value="S">S</option>
@@ -146,39 +155,52 @@ HTML_TEMPLATE = '''
                                 <option value="XXL">XXL</option>
                                 <option value="XXXL">XXXL</option>
                             </select>
-                            <input type="number" name="quantity" placeholder="Qty (Carton/Pcs)" required style="flex: 1;">
-                            <input type="number" step="0.01" name="price" placeholder="Price per unit" required style="flex: 1;">
-                            <button type="submit" class="btn" style="width: 100%; margin-top: 5px;">Add Product</button>
+                            <input type="number" name="quantity" placeholder="Qty" required style="flex: 1;">
+                            <input type="number" step="0.01" name="price" placeholder="Price" required style="flex: 1;">
                         </div>
+                        <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Add Product</button>
                     </form>
                 {% endif %}
 
-                <h3>📊 Current Stock List</h3>
+                <h3>🔍 Search by Company / Brand Name</h3>
+                <form method="GET" action="/" class="search-box">
+                    <input type="text" name="search" placeholder="Type company name (e.g. Huggies, Twinkle, Kinder)..." value="{{ search_query }}">
+                    <button type="submit" class="btn" style="background: #3498db; white-space: nowrap;">Search</button>
+                    {% if search_query %}
+                        <a href="/" class="btn" style="background: #95a5a6; text-decoration: none; display: flex; align-items: center;">Reset</a>
+                    {% endif %}
+                </form>
+
+                <h3>📊 Stock List</h3>
                 <table>
                     <thead>
                         <tr>
-                            <th>Name</th>
+                            <th>Company / Brand</th>
+                            <th>Product Name</th>
                             <th>Size</th>
                             <th>Qty</th>
                             <th>Price</th>
-                            <th>Total Value</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for p in products %}
                         <tr>
+                            <td><b>{{ p.brand }}</b></td>
                             <td>{{ p.name }}</td>
                             <td><b>{{ p.size }}</b></td>
                             <td><b>{{ p.quantity }}</b></td>
                             <td>৳{{ p.price }}</td>
-                            <td>৳{{ p.quantity * p.price }}</td>
                             <td>
                                 <form action="/deduct_stock/{{ p.id }}" method="POST" style="display:flex; gap:4px;">
-                                    <input type="number" name="amount" value="1" min="1" max="{{ p.quantity }}" style="width: 50px; padding: 3px;">
+                                    <input type="number" name="amount" value="1" min="1" max="{{ p.quantity }}" style="width: 45px; padding: 2px;">
                                     <button type="submit" class="btn btn-deduct">Deduct</button>
                                 </form>
                             </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #7f8c8d;">No products found! Try another company name.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -189,31 +211,32 @@ HTML_TEMPLATE = '''
                 
                 <div class="grid-2">
                     <div class="stats-card">
-                        <h4>📥 Monthly Stock In (Entry)</h4>
+                        <h4>📥 Monthly Stock In</h4>
                         <p>Total Qty Added: <b>{{ monthly_in_qty }}</b></p>
                         <p>Total Investment: <b>৳{{ "%.2f"|format(monthly_in_val) }}</b></p>
                     </div>
                     <div class="stats-card" style="border-left-color: #e67e22;">
-                        <h4>📤 Monthly Sales (Out)</h4>
+                        <h4>📤 Monthly Sales</h4>
                         <p>Total Qty Sold: <b>{{ monthly_out_qty }}</b></p>
                         <p>Total Sales Value: <b>৳{{ "%.2f"|format(monthly_out_val) }}</b></p>
                     </div>
                 </div>
 
                 <div class="stats-card" style="border-left-color: #27ae60; margin-top: 15px;">
-                    <h4>💰 Current Stock Valuation</h4>
+                    <h4>💰 Current Stock Assets</h4>
                     <p>Total Products in Stock: <b>{{ total_stock_qty }} Pcs/Cartons</b></p>
                     <p>Total Asset Value: <b>৳{{ "%.2f"|format(total_stock_val) }}</b></p>
                 </div>
 
-                <h3>📋 Employee Sales Activity History</h3>
+                <h3>📋 Activity History</h3>
                 <table>
                     <thead>
                         <tr>
-                            <th>Employee</th>
-                            <th>Product & Size</th>
+                            <th>User</th>
+                            <th>Brand & Product</th>
+                            <th>Size</th>
                             <th>Qty</th>
-                            <th>Total Amount</th>
+                            <th>Amount</th>
                             <th>Time</th>
                         </tr>
                     </thead>
@@ -221,7 +244,8 @@ HTML_TEMPLATE = '''
                         {% for log in logs %}
                         <tr>
                             <td><b>{{ log.user_email }}</b></td>
-                            <td>{{ log.product_name }} ({{ log.size }})</td>
+                            <td>{{ log.brand }} - {{ log.product_name }}</td>
+                            <td>{{ log.size }}</td>
                             <td><span style="color:red; font-weight:bold;">-{{ log.quantity_deducted }}</span></td>
                             <td>৳{{ log.total_price }}</td>
                             <td>{{ log.timestamp }}</td>
@@ -276,7 +300,7 @@ HTML_TEMPLATE = '''
                         <input type="email" name="email" value="{{ session['user'] }}" required>
                     </div>
                     <div class="form-group">
-                        <label>New Password (leave blank or enter new):</label>
+                        <label>New Password:</label>
                         <input type="password" name="password" placeholder="New Password">
                     </div>
                     <button type="submit" class="btn">Update Credentials</button>
@@ -319,10 +343,17 @@ def index():
     if 'user' not in session:
         return render_template_string(HTML_TEMPLATE, page='login')
     
+    search_query = request.args.get('search', '').strip()
     conn = get_db()
-    products = conn.execute('SELECT * FROM products').fetchall()
+    
+    if search_query:
+        products = conn.execute("SELECT * FROM products WHERE brand LIKE ? OR name LIKE ?", 
+                                ('%' + search_query + '%', '%' + search_query + '%')).fetchall()
+    else:
+        products = conn.execute('SELECT * FROM products').fetchall()
+        
     conn.close()
-    return render_template_string(HTML_TEMPLATE, page='dashboard', products=products, active_tab='inventory')
+    return render_template_string(HTML_TEMPLATE, page='dashboard', products=products, active_tab='inventory', search_query=search_query)
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -353,14 +384,15 @@ def add_product():
         return redirect(url_for('index'))
         
     name = request.form['name']
+    brand = request.form['brand']
     size = request.form['size']
     quantity = int(request.form['quantity'])
     price = float(request.form['price'])
     
     conn = get_db()
-    conn.execute('INSERT INTO products (name, size, quantity, price) VALUES (?, ?, ?, ?)', (name, size, quantity, price))
-    conn.execute('INSERT INTO stock_in_logs (admin_email, product_name, size, quantity_added, price_per_unit) VALUES (?, ?, ?, ?, ?)',
-                 (session['user'], name, size, quantity, price))
+    conn.execute('INSERT INTO products (name, brand, size, quantity, price) VALUES (?, ?, ?, ?, ?)', (name, brand, size, quantity, price))
+    conn.execute('INSERT INTO stock_in_logs (admin_email, product_name, brand, size, quantity_added, price_per_unit) VALUES (?, ?, ?, ?, ?, ?)',
+                 (session['user'], name, brand, size, quantity, price))
     conn.commit()
     conn.close()
     flash('Product added successfully!')
@@ -379,8 +411,8 @@ def deduct_stock(id):
         new_qty = product['quantity'] - amount
         total_sale_price = amount * product['price']
         conn.execute('UPDATE products SET quantity = ? WHERE id = ?', (new_qty, id))
-        conn.execute('INSERT INTO logs (user_email, product_name, size, quantity_deducted, total_price) VALUES (?, ?, ?, ?, ?)',
-                     (session['user'], product['name'], product['size'], amount, total_sale_price))
+        conn.execute('INSERT INTO logs (user_email, product_name, brand, size, quantity_deducted, total_price) VALUES (?, ?, ?, ?, ?, ?)',
+                     (session['user'], product['name'], product['brand'], product['size'], amount, total_sale_price))
         conn.commit()
         flash('Stock deducted successfully!')
     else:
@@ -398,17 +430,14 @@ def reports():
     current_month_str = datetime.now().strftime('%Y-%m')
     
     conn = get_db()
-    # Monthly Stock In
     stock_in = conn.execute("SELECT SUM(quantity_added) as qty, SUM(quantity_added * price_per_unit) as val FROM stock_in_logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
     monthly_in_qty = stock_in['qty'] if stock_in['qty'] else 0
     monthly_in_val = stock_in['val'] if stock_in['val'] else 0.0
 
-    # Monthly Sales / Out
     stock_out = conn.execute("SELECT SUM(quantity_deducted) as qty, SUM(total_price) as val FROM logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
     monthly_out_qty = stock_out['qty'] if stock_out['qty'] else 0
     monthly_out_val = stock_out['val'] if stock_out['val'] else 0.0
 
-    # Total Current Stock & Value
     products = conn.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products").fetchone()
     total_stock_qty = products['qty'] if products['qty'] else 0
     total_stock_val = products['val'] if products['val'] else 0.0
