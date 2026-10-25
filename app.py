@@ -81,10 +81,10 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brand-Based Inventory Management System</title>
+    <title>Brand-Wise Inventory Management System</title>
     <style>
         body { font-family: sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .container { max-width: 950px; margin: 0 auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h2, h3 { color: #2c3e50; margin-top: 10px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px; }
         .user-info { font-size: 13px; color: #7f8c8d; }
@@ -143,7 +143,7 @@ HTML_TEMPLATE = '''
                             <input type="text" name="name" placeholder="Product Name (e.g. Baby Diaper)" required>
                         </div>
                         <div class="form-group">
-                            <input type="text" name="brand" placeholder="Company/Brand Name (e.g. Mamy Poko Pants, Huggies, Thai)" required>
+                            <input type="text" name="brand" placeholder="Company/Brand Name (e.g. Thai, Happy Nappy, Twinkle, Huggies)" required>
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <select name="size" required style="flex: 1;">
@@ -164,7 +164,7 @@ HTML_TEMPLATE = '''
 
                 <h3>🔍 Search by Company / Brand Name</h3>
                 <form method="GET" action="/" class="search-box">
-                    <input type="text" name="search" placeholder="Type company name (e.g. Huggies, Twinkle, Kinder)..." value="{{ search_query }}">
+                    <input type="text" name="search" placeholder="Type company name (e.g. Huggies, Thai, Twinkle)..." value="{{ search_query }}">
                     <button type="submit" class="btn" style="background: #3498db; white-space: nowrap;">Search</button>
                     {% if search_query %}
                         <a href="/" class="btn" style="background: #95a5a6; text-decoration: none; display: flex; align-items: center;">Reset</a>
@@ -211,22 +211,47 @@ HTML_TEMPLATE = '''
                 
                 <div class="grid-2">
                     <div class="stats-card">
-                        <h4>📥 Monthly Stock In</h4>
+                        <h4>📥 Monthly Stock In (Overall)</h4>
                         <p>Total Qty Added: <b>{{ monthly_in_qty }}</b></p>
                         <p>Total Investment: <b>৳{{ "%.2f"|format(monthly_in_val) }}</b></p>
                     </div>
                     <div class="stats-card" style="border-left-color: #e67e22;">
-                        <h4>📤 Monthly Sales</h4>
+                        <h4>📤 Monthly Sales (Overall)</h4>
                         <p>Total Qty Sold: <b>{{ monthly_out_qty }}</b></p>
                         <p>Total Sales Value: <b>৳{{ "%.2f"|format(monthly_out_val) }}</b></p>
                     </div>
                 </div>
 
-                <div class="stats-card" style="border-left-color: #27ae60; margin-top: 15px;">
-                    <h4>💰 Current Stock Assets</h4>
+                <div class="stats-card" style="border-left-color: #27ae60; margin-top: 10px;">
+                    <h4>💰 Current Stock Assets (Overall)</h4>
                     <p>Total Products in Stock: <b>{{ total_stock_qty }} Pcs/Cartons</b></p>
                     <p>Total Asset Value: <b>৳{{ "%.2f"|format(total_stock_val) }}</b></p>
                 </div>
+
+                <!-- নতুন সংযোজন: কোম্পানি/ব্র্যান্ড অনুযায়ী আলাদা হিসাব -->
+                <h3>🏢 Brand-wise Detailed Report (কোম্পানিভিত্তিক আলাদা হিসাব)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Company / Brand</th>
+                            <th>Current Stock Qty</th>
+                            <th>Current Stock Value</th>
+                            <th>Monthly In (Qty)</th>
+                            <th>Monthly Out (Qty)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in brand_reports %}
+                        <tr>
+                            <td><b>{{ b.brand }}</b></td>
+                            <td><b>{{ b.current_qty if b.current_qty else 0 }}</b></td>
+                            <td>৳{{ "%.2f"|format(b.current_val if b.current_val else 0.0) }}</td>
+                            <td style="color: green; font-weight: bold;">+{{ b.in_qty if b.in_qty else 0 }}</td>
+                            <td style="color: red; font-weight: bold;">-{{ b.out_qty if b.out_qty else 0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
 
                 <h3>📋 Activity History</h3>
                 <table>
@@ -430,17 +455,42 @@ def reports():
     current_month_str = datetime.now().strftime('%Y-%m')
     
     conn = get_db()
+    # Overall Monthly Stock In
     stock_in = conn.execute("SELECT SUM(quantity_added) as qty, SUM(quantity_added * price_per_unit) as val FROM stock_in_logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
     monthly_in_qty = stock_in['qty'] if stock_in['qty'] else 0
     monthly_in_val = stock_in['val'] if stock_in['val'] else 0.0
 
+    # Overall Monthly Sales / Out
     stock_out = conn.execute("SELECT SUM(quantity_deducted) as qty, SUM(total_price) as val FROM logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
     monthly_out_qty = stock_out['qty'] if stock_out['qty'] else 0
     monthly_out_val = stock_out['val'] if stock_out['val'] else 0.0
 
+    # Overall Total Current Stock & Value
     products = conn.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products").fetchone()
     total_stock_qty = products['qty'] if products['qty'] else 0
     total_stock_val = products['val'] if products['val'] else 0.0
+
+    # Brand-wise Detailed Statistics query
+    # అన్ని ব্র্যান্ডগুলির বর্তমান স্টক, মাসিক ইন এবং মাসিক আউট একসাথে বের করা
+    brands_list = conn.execute("SELECT DISTINCT brand FROM products UNION SELECT DISTINCT brand FROM stock_in_logs UNION SELECT DISTINCT brand FROM logs").fetchall()
+    
+    brand_reports = []
+    for b_row in brands_list:
+        b_name = b_row['brand']
+        # Current stock for this brand
+        cur = conn.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products WHERE brand = ?", (b_name,)).fetchone()
+        # Monthly In for this brand
+        in_res = conn.execute("SELECT SUM(quantity_added) as qty FROM stock_in_logs WHERE brand = ? AND strftime('%Y-%m', timestamp) = ?", (b_name, current_month_str)).fetchone()
+        # Monthly Out for this brand
+        out_res = conn.execute("SELECT SUM(quantity_deducted) as qty FROM logs WHERE brand = ? AND strftime('%Y-%m', timestamp) = ?", (b_name, current_month_str)).fetchone()
+        
+        brand_reports.append({
+            'brand': b_name,
+            'current_qty': cur['qty'] if cur and cur['qty'] else 0,
+            'current_val': cur['val'] if cur and cur['val'] else 0.0,
+            'in_qty': in_res['qty'] if in_res and in_res['qty'] else 0,
+            'out_qty': out_res['qty'] if out_res and out_res['qty'] else 0
+        })
 
     logs = conn.execute('SELECT * FROM logs ORDER BY timestamp DESC').fetchall()
     conn.close()
@@ -449,6 +499,7 @@ def reports():
                                   monthly_in_qty=monthly_in_qty, monthly_in_val=monthly_in_val,
                                   monthly_out_qty=monthly_out_qty, monthly_out_val=monthly_out_val,
                                   total_stock_qty=total_stock_qty, total_stock_val=total_stock_val,
+                                  brand_reports=brand_reports,
                                   logs=logs, active_tab='reports', current_month=current_month_str)
 
 @app.route('/employees')
