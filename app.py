@@ -2,6 +2,7 @@ from flask import Flask, render_template_string, request, redirect, url_for, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
+import json
 from datetime import datetime
 import google.generativeai as genai
 
@@ -97,7 +98,7 @@ HTML_TEMPLATE = '''
         .form-group { margin-bottom: 10px; }
         input, select, textarea { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn { background: #27ae60; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-deduct { background: #e67e22; padding: 4px 8px; }
+        .btn-deduct { background: #e67e22; padding: 4px 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
         .btn-danger { background: #c0392b; padding: 4px 8px; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -110,6 +111,7 @@ HTML_TEMPLATE = '''
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
         .ai-box { background: #e8f4fd; border: 1px solid #bbe1fa; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .cart-floating { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 6px; margin-top: 20px; }
         @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -178,7 +180,7 @@ HTML_TEMPLATE = '''
                     {% endif %}
                 </form>
 
-                <h3>📊 Stock List</h3>
+                <h3>📊 Stock List & Batch Cart (Add to Cart)</h3>
                 <table>
                     <thead>
                         <tr>
@@ -187,7 +189,7 @@ HTML_TEMPLATE = '''
                             <th>Size</th>
                             <th>Qty</th>
                             <th>Price</th>
-                            <th>Action</th>
+                            <th>Action / Cart</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -199,10 +201,10 @@ HTML_TEMPLATE = '''
                             <td><b>{{ p.quantity }}</b></td>
                             <td>৳{{ p.price }}</td>
                             <td>
-                                <form action="/deduct_stock/{{ p.id }}" method="POST" style="display:flex; gap:4px;">
-                                    <input type="number" name="amount" value="1" min="1" max="{{ p.quantity }}" style="width: 45px; padding: 2px;">
-                                    <button type="submit" class="btn btn-deduct">Deduct</button>
-                                </form>
+                                <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #2980b9;" 
+                                        onclick="addToCart({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})', {{ p.quantity }}, {{ p.price }})">
+                                    🛒 Add to Cart
+                                </button>
                             </td>
                         </tr>
                         {% else %}
@@ -212,6 +214,101 @@ HTML_TEMPLATE = '''
                         {% endfor %}
                     </tbody>
                 </table>
+
+                <!-- ডারাজ স্টাইল কার্ট সেকশন -->
+                <div id="cart-section" class="cart-floating" style="display: none;">
+                    <h3 style="margin-top:0;">🛒 গোডাউন থেকে মাল বের করার কার্ট (Batch Cart)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>পণ্যের বিবরণ</th>
+                                <th style="width: 100px;">পরিমাণ (Qty)</th>
+                                <th style="width: 80px;">অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cart-table-body">
+                            <!-- জাভাস্ক্রিপ্ট দিয়ে আইটেমগুলো এখানে যোগ হবে -->
+                        </tbody>
+                    </table>
+
+                    <form action="/cart_deduct" method="POST" onsubmit="prepareCartSubmission()" style="margin-top: 15px;">
+                        <input type="hidden" name="cart_data" id="cart_data_input">
+                        <button type="submit" class="btn" style="background: #d35400; width: 100%; padding: 12px; font-size: 15px;">
+                            ✅ একসাথে সব পণ্য স্টক থেকে মাইনাস করুন (Confirm Batch Out)
+                        </button>
+                    </form>
+                </div>
+
+                <!-- কার্ট ম্যানেজমেন্ট স্ক্রিপ্ট -->
+                <script>
+                    let cart = [];
+
+                    function addToCart(id, name, maxQty, price) {
+                        let existing = cart.find(item => item.id === id);
+                        if (existing) {
+                            if (existing.qty < maxQty) {
+                                existing.qty += 1;
+                            } else {
+                                alert("স্টকে আর পর্যাপ্ত পণ্য নেই!");
+                            }
+                        } else {
+                            cart.push({ id: id, name: name, qty: 1, maxQty: maxQty, price: price });
+                        }
+                        renderCart();
+                    }
+
+                    function updateQty(id, val) {
+                        let item = cart.find(item => item.id === id);
+                        if (item) {
+                            let newQty = parseInt(val);
+                            if (newQty > item.maxQty) {
+                                alert("স্টকের চেয়ে বেশি পরিমাণ দেওয়া যাবে না!");
+                                item.qty = item.maxQty;
+                            } else if (newQty < 1) {
+                                item.qty = 1;
+                            } else {
+                                item.qty = newQty;
+                            }
+                            renderCart();
+                        }
+                    }
+
+                    function removeFromCart(id) {
+                        cart = cart.filter(item => item.id !== id);
+                        renderCart();
+                    }
+
+                    function renderCart() {
+                        let section = document.getElementById('cart-section');
+                        let tbody = document.getElementById('cart-table-body');
+                        tbody.innerHTML = '';
+
+                        if (cart.length === 0) {
+                            section.style.display = 'none';
+                            return;
+                        }
+
+                        section.style.display = 'block';
+                        cart.forEach(item => {
+                            let tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td><b>${item.name}</b></td>
+                                <td>
+                                    <input type="number" value="${item.qty}" min="1" max="${item.maxQty}" 
+                                           style="width: 70px; padding: 4px;" onchange="updateQty(${item.id}, this.value)">
+                                </td>
+                                <td>
+                                    <button type="button" class="btn-danger" onclick="removeFromCart(${item.id})">Remove</button>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+
+                    function prepareCartSubmission() {
+                        document.getElementById('cart_data_input').value = JSON.stringify(cart);
+                    }
+                </script>
 
             {% elif page == 'reports' and session['role'] == 'admin' %}
                 <h3>📈 Monthly & Financial Overview ({{ current_month }})</h3>
@@ -469,6 +566,45 @@ def deduct_stock(id):
         flash('Not enough stock!')
         
     conn.close()
+    return redirect(url_for('index'))
+
+# নতুন কার্ট ব্যাচ ডিডাকশন রাউট (Daraz style add to cart)
+@app.route('/cart_deduct', methods=['POST'])
+def cart_deduct():
+    if 'user' not in session:
+        return redirect(url_for('index'))
+        
+    cart_data = request.form.get('cart_data')
+    if not cart_data:
+        flash('কার্ট খালি বা কোনো পণ্য সিলেক্ট করা হয়নি!')
+        return redirect(url_for('index'))
+        
+    try:
+        items = json.loads(cart_data)
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        for item in items:
+            p_id = item['id']
+            deduct_qty = int(item['qty'])
+            
+            product = cursor.execute('SELECT * FROM products WHERE id = ?', (p_id,)).fetchone()
+            if product and product['quantity'] >= deduct_qty:
+                new_qty = product['quantity'] - deduct_qty
+                total_sale_price = deduct_qty * product['price']
+                
+                cursor.execute('UPDATE products SET quantity = ? WHERE id = ?', (new_qty, p_id))
+                cursor.execute('INSERT INTO logs (user_email, product_name, brand, size, quantity_deducted, total_price) VALUES (?, ?, ?, ?, ?, ?)',
+                             (session['user'], product['name'], product['brand'], product['size'], deduct_qty, total_sale_price))
+            else:
+                flash(f"পণ্য '{product['name']}' এর পর্যাপ্ত স্টক নেই!")
+                
+        conn.commit()
+        conn.close()
+        flash('কার্টের সকল পণ্য সফলভাবে স্টক থেকে মাইনাস করা হয়েছে!')
+    except Exception as e:
+        flash(f'ত্রুটি ঘটেছে: {str(e)}')
+        
     return redirect(url_for('index'))
 
 @app.route('/reports')
