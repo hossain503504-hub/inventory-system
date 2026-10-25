@@ -1,3 +1,4 @@
 Flask
-werkzeug
+Werkzeug
 google-generativeai
+psycopg2-binary
