@@ -3,11 +3,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
 from datetime import datetime
+from google import genai
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
 
 DATABASE = 'inventory.db'
+
+# জেমিনি এআই ক্লায়েন্ট সেটআপ (রেন্ডার এনভায়রনমেন্ট ভেরিয়েবল থেকে এপিআই কি পড়বে)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
+ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -81,7 +86,7 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brand-Wise Inventory Management System</title>
+    <title>AI-Powered Inventory Management System</title>
     <style>
         body { font-family: sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; }
         .container { max-width: 950px; margin: 0 auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -90,7 +95,7 @@ HTML_TEMPLATE = '''
         .user-info { font-size: 13px; color: #7f8c8d; }
         .btn-logout { background: #e74c3c; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 12px; }
         .form-group { margin-bottom: 10px; }
-        input, select { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input, select, textarea { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn { background: #27ae60; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-deduct { background: #e67e22; padding: 4px 8px; }
         .btn-danger { background: #c0392b; padding: 4px 8px; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; }
@@ -104,6 +109,7 @@ HTML_TEMPLATE = '''
         .stats-card { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 14px; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
+        .ai-box { background: #e8f4fd; border: 1px solid #bbe1fa; padding: 15px; border-radius: 6px; margin-top: 15px; }
         @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -112,7 +118,7 @@ HTML_TEMPLATE = '''
         {% if session.get('user') %}
             <div class="header">
                 <div>
-                    <h2>📦 Inventory System</h2>
+                    <h2>📦 AI Inventory System</h2>
                     <div class="user-info">User: <b>{{ session['user'] }}</b> (<i>{{ session['role'] }}</i>)</div>
                 </div>
                 <a href="/logout" class="btn-logout">Logout</a>
@@ -130,6 +136,7 @@ HTML_TEMPLATE = '''
                 <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">Stock & Search</a>
                 {% if session['role'] == 'admin' %}
                     <a href="/reports" class="{% if active_tab == 'reports' %}active{% endif %}">Reports & Financials</a>
+                    <a href="/ai_advisor" class="{% if active_tab == 'ai_advisor' %}active{% endif %}">🤖 Gemini AI Advisor</a>
                     <a href="/employees" class="{% if active_tab == 'employees' %}active{% endif %}">Manage Employees</a>
                     <a href="/settings" class="{% if active_tab == 'settings' %}active{% endif %}">Admin Settings</a>
                 {% endif %}
@@ -228,8 +235,7 @@ HTML_TEMPLATE = '''
                     <p>Total Asset Value: <b>৳{{ "%.2f"|format(total_stock_val) }}</b></p>
                 </div>
 
-                <!-- নতুন সংযোজন: কোম্পানি/ব্র্যান্ড অনুযায়ী আলাদা হিসাব -->
-                <h3>🏢 Brand-wise Detailed Report (কোম্পানিভিত্তিক আলাদা হিসাব)</h3>
+                <h3>🏢 Brand-wise Detailed Report</h3>
                 <table>
                     <thead>
                         <tr>
@@ -278,6 +284,25 @@ HTML_TEMPLATE = '''
                         {% endfor %}
                     </tbody>
                 </table>
+
+            {% elif page == 'ai_advisor' and session['role'] == 'admin' %}
+                <h3>🤖 Gemini AI Stock & Business Advisor</h3>
+                <p style="font-size: 13px; color: #555;">আপনার ইনভেন্টরি ও সেলস ডাটা বিশ্লেষণ করে জেমিনি এআই থেকে যেকোনো পরামর্শ বা প্রশ্ন করতে পারেন।</p>
+                
+                <form action="/ask_ai" method="POST" class="ai-box">
+                    <div class="form-group">
+                        <label><b>Ask Gemini AI (প্রশ্ন বা নির্দেশনা লিখুন):</b></label>
+                        <textarea name="ai_prompt" rows="3" placeholder="যেমন: এই মাসে কোন ব্র্যান্ডের ডায়াপার সবচেয়ে বেশি বিক্রি হয়েছে? বা কোন ব্র্যান্ডের স্টক বাড়ানো উচিত?" required></textarea>
+                    </div>
+                    <button type="submit" class="btn" style="background: #8e44ad;">Ask AI Assistant</button>
+                </form>
+
+                {% if ai_response %}
+                    <div style="background: #fff; border: 1px solid #8e44ad; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                        <h4 style="color: #8e44ad; margin-top: 0;">💡 Gemini AI Response:</h4>
+                        <p style="white-space: pre-line; line-height: 1.5; font-size: 14px;">{{ ai_response }}</p>
+                    </div>
+                {% endif %}
 
             {% elif page == 'employees' and session['role'] == 'admin' %}
                 <h3>👥 Add New Employee</h3>
@@ -455,33 +480,25 @@ def reports():
     current_month_str = datetime.now().strftime('%Y-%m')
     
     conn = get_db()
-    # Overall Monthly Stock In
     stock_in = conn.execute("SELECT SUM(quantity_added) as qty, SUM(quantity_added * price_per_unit) as val FROM stock_in_logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
     monthly_in_qty = stock_in['qty'] if stock_in['qty'] else 0
     monthly_in_val = stock_in['val'] if stock_in['val'] else 0.0
 
-    # Overall Monthly Sales / Out
     stock_out = conn.execute("SELECT SUM(quantity_deducted) as qty, SUM(total_price) as val FROM logs WHERE strftime('%Y-%m', timestamp) = ?", (current_month_str,)).fetchone()
     monthly_out_qty = stock_out['qty'] if stock_out['qty'] else 0
     monthly_out_val = stock_out['val'] if stock_out['val'] else 0.0
 
-    # Overall Total Current Stock & Value
     products = conn.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products").fetchone()
     total_stock_qty = products['qty'] if products['qty'] else 0
     total_stock_val = products['val'] if products['val'] else 0.0
 
-    # Brand-wise Detailed Statistics query
-    # అన్ని ব্র্যান্ডগুলির বর্তমান স্টক, মাসিক ইন এবং মাসিক আউট একসাথে বের করা
     brands_list = conn.execute("SELECT DISTINCT brand FROM products UNION SELECT DISTINCT brand FROM stock_in_logs UNION SELECT DISTINCT brand FROM logs").fetchall()
     
     brand_reports = []
     for b_row in brands_list:
         b_name = b_row['brand']
-        # Current stock for this brand
         cur = conn.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products WHERE brand = ?", (b_name,)).fetchone()
-        # Monthly In for this brand
         in_res = conn.execute("SELECT SUM(quantity_added) as qty FROM stock_in_logs WHERE brand = ? AND strftime('%Y-%m', timestamp) = ?", (b_name, current_month_str)).fetchone()
-        # Monthly Out for this brand
         out_res = conn.execute("SELECT SUM(quantity_deducted) as qty FROM logs WHERE brand = ? AND strftime('%Y-%m', timestamp) = ?", (b_name, current_month_str)).fetchone()
         
         brand_reports.append({
@@ -501,6 +518,50 @@ def reports():
                                   total_stock_qty=total_stock_qty, total_stock_val=total_stock_val,
                                   brand_reports=brand_reports,
                                   logs=logs, active_tab='reports', current_month=current_month_str)
+
+@app.route('/ai_advisor')
+def ai_advisor():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    return render_template_string(HTML_TEMPLATE, page='ai_advisor', active_tab='ai_advisor')
+
+@app.route('/ask_ai', methods=['POST'])
+def ask_ai():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    
+    user_prompt = request.form['ai_prompt']
+    
+    conn = get_db()
+    products = conn.execute("SELECT brand, name, size, quantity, price FROM products").fetchall()
+    logs = conn.execute("SELECT brand, product_name, size, quantity_deducted, timestamp FROM logs ORDER BY timestamp DESC LIMIT 20").fetchall()
+    conn.close()
+    
+    stock_summary = "\n".join([f"- Brand: {p['brand']}, Product: {p['name']}, Size: {p['size']}, Qty: {p['quantity']}, Price: {p['price']}" for p in products])
+    sales_summary = "\n".join([f"- Sold: {l['quantity_deducted']} of {l['brand']} ({l['product_name']} size {l['size']}) at {l['timestamp']}" for l in logs])
+    
+    context = f"""
+    You are an expert inventory and business advisor for a baby diaper shop. 
+    Here is the current stock status:
+    {stock_summary if stock_summary else "No stock available."}
+    
+    Here is the recent sales history:
+    {sales_summary if sales_summary else "No sales yet."}
+    
+    Please answer the admin's question in professional and helpful Bengali (বাংলা):
+    Question: {user_prompt}
+    """
+    
+    try:
+        response = ai_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=context,
+        )
+        ai_reply = response.text
+    except Exception as e:
+        ai_reply = f"Error communicating with Gemini AI: {str(e)}"
+        
+    return render_template_string(HTML_TEMPLATE, page='ai_advisor', active_tab='ai_advisor', ai_response=ai_reply)
 
 @app.route('/employees')
 def employees():
