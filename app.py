@@ -108,4 +108,198 @@ HTML_TEMPLATE = '''
             <div class="nav-tabs">
                 <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">Stock</a>
                 {% if session['role'] == 'admin' %}
-                    <a href="/history" class="{%
+                    <a href="/history" class="{% if active_tab == 'history' %}active{% endif %}">Activity Log</a>
+                {% endif %}
+            </div>
+
+            {% if page == 'dashboard' %}
+                {% if session['role'] == 'admin' %}
+                    <h3>➕ Add New Diaper / Product</h3>
+                    <form action="/add_product" method="POST" style="margin-bottom: 20px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <input type="text" name="name" placeholder="Product Name" required style="flex: 2;">
+                            <select name="size" required style="flex: 1;">
+                                <option value="" disabled selected>Size</option>
+                                <option value="S">S</option>
+                                <option value="M">M</option>
+                                <option value="L">L</option>
+                                <option value="XL">XL</option>
+                                <option value="XXL">XXL</option>
+                                <option value="XXXL">XXXL</option>
+                            </select>
+                            <input type="number" name="quantity" placeholder="Qty" required style="flex: 1;">
+                            <input type="number" step="0.01" name="price" placeholder="Price" required style="flex: 1;">
+                            <button type="submit" class="btn" style="width: 100%; margin-top: 5px;">Add Product</button>
+                        </div>
+                    </form>
+                {% endif %}
+
+                <h3>📊 Product & Size Stock</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Size</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in products %}
+                        <tr>
+                            <td>{{ p.name }}</td>
+                            <td><b>{{ p.size }}</b></td>
+                            <td><b>{{ p.quantity }}</b></td>
+                            <td>${{ p.price }}</td>
+                            <td>
+                                <form action="/deduct_stock/{{ p.id }}" method="POST" style="display:flex; gap:4px;">
+                                    <input type="number" name="amount" value="1" min="1" max="{{ p.quantity }}" style="width: 50px; padding: 3px;">
+                                    <button type="submit" class="btn btn-deduct">Deduct</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            {% elif page == 'history' and session['role'] == 'admin' %}
+                <h3>📋 Employee Activity History</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Product & Size</th>
+                            <th>Qty</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td><b>{{ log.user_email }}</b></td>
+                            <td>{{ log.product_name }} ({{ log.size }})</td>
+                            <td><span style="color:red; font-weight:bold;">-{{ log.quantity_deducted }}</span></td>
+                            <td>{{ log.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+        {% else %}
+            <h2 style="text-align: center;">🔐 System Login</h2>
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}
+                  <div class="flash">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+            <form action="/login" method="POST">
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" name="email" required placeholder="admin@system.com">
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" name="password" required placeholder="******">
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Login</button>
+            </form>
+            <div style="margin-top: 15px; font-size: 12px; color: #666; background: #eef2f5; padding: 8px; border-radius: 4px;">
+                <b>Logins:</b><br>
+                • Admin: <code>admin@system.com</code> / <code>admin123</code><br>
+                • Employee: <code>emp@system.com</code> / <code>emp123</code>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+'''
+
+@app.route('/')
+def index():
+    if 'user' not in session:
+        return render_template_string(HTML_TEMPLATE, page='login')
+    
+    conn = get_db()
+    products = conn.execute('SELECT * FROM products').fetchall()
+    conn.close()
+    return render_template_string(HTML_TEMPLATE, page='dashboard', products=products, active_tab='inventory')
+
+@app.route('/login', methods=['POST'])
+def login():
+    email = request.form['email']
+    password = request.form['password']
+    
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    conn.close()
+    
+    if user and check_password_hash(user['password'], password):
+        session['user'] = user['email']
+        session['role'] = user['role']
+        return redirect(url_for('index'))
+    else:
+        flash('Invalid Email or Password!')
+        return redirect(url_for('index'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
+
+@app.route('/add_product', methods=['POST'])
+def add_product():
+    if session.get('role') != 'admin':
+        flash('Only Admin can add products!')
+        return redirect(url_for('index'))
+        
+    name = request.form['name']
+    size = request.form['size']
+    quantity = int(request.form['quantity'])
+    price = float(request.form['price'])
+    
+    conn = get_db()
+    conn.execute('INSERT INTO products (name, size, quantity, price) VALUES (?, ?, ?, ?)', (name, size, quantity, price))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('index'))
+
+@app.route('/deduct_stock/<int:id>', methods=['POST'])
+def deduct_stock(id):
+    if 'user' not in session:
+        return redirect(url_for('index'))
+        
+    amount = int(request.form['amount'])
+    conn = get_db()
+    product = conn.execute('SELECT * FROM products WHERE id = ?', (id,)).fetchone()
+    
+    if product and product['quantity'] >= amount:
+        new_qty = product['quantity'] - amount
+        conn.execute('UPDATE products SET quantity = ? WHERE id = ?', (new_qty, id))
+        conn.execute('INSERT INTO logs (user_email, product_name, size, quantity_deducted) VALUES (?, ?, ?, ?)',
+                     (session['user'], product['name'], product['size'], amount))
+        conn.commit()
+    else:
+        flash('Not enough stock!')
+        
+    conn.close()
+    return redirect(url_for('index'))
+
+@app.route('/history')
+def history():
+    if session.get('role') != 'admin':
+        flash('Access restricted to Admin only!')
+        return redirect(url_for('index'))
+        
+    conn = get_db()
+    logs = conn.execute('SELECT * FROM logs ORDER BY timestamp DESC').fetchall()
+    conn.close()
+    return render_template_string(HTML_TEMPLATE, page='history', logs=logs, active_tab='history')
+
+if __name__ == '__main__':
+    init_db()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
