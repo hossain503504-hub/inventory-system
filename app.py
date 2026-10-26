@@ -98,8 +98,7 @@ HTML_TEMPLATE = '''
         .form-group { margin-bottom: 10px; }
         input, select, textarea { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn { background: #27ae60; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-deduct { background: #e67e22; padding: 4px 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-        .btn-danger { background: #c0392b; padding: 4px 8px; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; }
+        .btn-danger { background: #c0392b; padding: 4px 8px; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; display: inline-block; text-align: center; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #3498db; color: white; }
@@ -111,7 +110,6 @@ HTML_TEMPLATE = '''
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
         .ai-box { background: #e8f4fd; border: 1px solid #bbe1fa; padding: 15px; border-radius: 6px; margin-top: 15px; }
-        .cart-floating { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 6px; margin-top: 20px; }
         @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -180,7 +178,7 @@ HTML_TEMPLATE = '''
                     {% endif %}
                 </form>
 
-                <h3>📊 Stock List & Batch Cart (Add to Cart)</h3>
+                <h3>📊 Stock List (Manage Stock & Remove)</h3>
                 <table>
                     <thead>
                         <tr>
@@ -189,7 +187,7 @@ HTML_TEMPLATE = '''
                             <th>Size</th>
                             <th>Qty</th>
                             <th>Price</th>
-                            <th>Action / Cart</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -202,15 +200,14 @@ HTML_TEMPLATE = '''
                             <td>৳{{ p.price }}</td>
                             <td>
                                 <div style="display: flex; gap: 5px; align-items: center;">
-                                    <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #2980b9;" 
-                                            onclick="addToCart({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})', {{ p.quantity }}, {{ p.price }})">
-                                        🛒 Add to Cart
-                                    </button>
                                     {% if session['role'] == 'admin' %}
-                                        <button type="button" class="btn" style="padding: 4px 6px; font-size: 11px; background: #27ae60;" 
+                                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #27ae60;" 
                                                 onclick="quickAddStock({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})')">
                                             ➕ Add
                                         </button>
+                                        <a href="/delete_product/{{ p.id }}" class="btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="return confirm('Are you sure you want to remove this product?')">Remove</a>
+                                    {% else %}
+                                        <span style="color: #7f8c8d; font-size: 12px;">View Only</span>
                                     {% endif %}
                                 </div>
                             </td>
@@ -223,97 +220,7 @@ HTML_TEMPLATE = '''
                     </tbody>
                 </table>
 
-                <div id="cart-section" class="cart-floating" style="display: none;">
-                    <h3 style="margin-top:0;">🛒 Warehouse Checkout Cart (Batch Cart)</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Product Details</th>
-                                <th style="width: 100px;">Quantity</th>
-                                <th style="width: 80px;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cart-table-body">
-                        </tbody>
-                    </table>
-
-                    <form action="/cart_deduct" method="POST" onsubmit="prepareCartSubmission()" style="margin-top: 15px;">
-                        <input type="hidden" name="cart_data" id="cart_data_input">
-                        <button type="submit" class="btn" style="background: #d35400; width: 100%; padding: 12px; font-size: 15px;">
-                            ✅ Confirm Batch Out (Deduct All from Stock)
-                        </button>
-                    </form>
-                </div>
-
                 <script>
-                    let cart = [];
-
-                    function addToCart(id, name, maxQty, price) {
-                        let existing = cart.find(item => item.id === id);
-                        if (existing) {
-                            if (existing.qty < maxQty) {
-                                existing.qty += 1;
-                            } else {
-                                alert("Not enough stock available!");
-                            }
-                        } else {
-                            cart.push({ id: id, name: name, qty: 1, maxQty: maxQty, price: price });
-                        }
-                        renderCart();
-                    }
-
-                    function updateQty(id, val) {
-                        let item = cart.find(item => item.id === id);
-                        if (item) {
-                            let newQty = parseInt(val);
-                            if (newQty > item.maxQty) {
-                                alert("Cannot exceed available stock quantity!");
-                                item.qty = item.maxQty;
-                            } else if (newQty < 1) {
-                                item.qty = 1;
-                            } else {
-                                item.qty = newQty;
-                            }
-                            renderCart();
-                        }
-                    }
-
-                    function removeFromCart(id) {
-                        cart = cart.filter(item => item.id !== id);
-                        renderCart();
-                    }
-
-                    function renderCart() {
-                        let section = document.getElementById('cart-section');
-                        let tbody = document.getElementById('cart-table-body');
-                        tbody.innerHTML = '';
-
-                        if (cart.length === 0) {
-                            section.style.display = 'none';
-                            return;
-                        }
-
-                        section.style.display = 'block';
-                        cart.forEach(item => {
-                            let tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td><b>${item.name}</b></td>
-                                <td>
-                                    <input type="number" value="${item.qty}" min="1" max="${item.maxQty}" 
-                                           style="width: 70px; padding: 4px;" onchange="updateQty(${item.id}, this.value)">
-                                </td>
-                                <td>
-                                    <button type="button" class="btn-danger" onclick="removeFromCart(${item.id})">Remove</button>
-                                </td>
-                            `;
-                            tbody.appendChild(tr);
-                        });
-                    }
-
-                    function prepareCartSubmission() {
-                        document.getElementById('cart_data_input').value = JSON.stringify(cart);
-                    }
-
                     function quickAddStock(id, name) {
                         let qtyToAdd = prompt("Enter quantity to add to stock for " + name + ":");
                         if (qtyToAdd !== null && qtyToAdd.trim() !== "") {
@@ -625,44 +532,19 @@ def quick_add_stock():
         
     return redirect(url_for('index'))
 
-@app.route('/cart_deduct', methods=['POST'])
-def cart_deduct():
-    if 'user' not in session:
+@app.route('/delete_product/<int:id>')
+def delete_product(id):
+    if session.get('role') != 'admin':
+        flash('Only Admin can delete products!')
         return redirect(url_for('index'))
         
-    cart_data = request.form.get('cart_data')
-    if not cart_data:
-        flash('Cart is empty or no products selected!')
-        return redirect(url_for('index'))
-        
-    try:
-        items = json.loads(cart_data)
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        for item in items:
-            p_id = item['id']
-            deduct_qty = int(item['qty'])
-            
-            cursor.execute('SELECT * FROM products WHERE id = %s', (p_id,))
-            product = cursor.fetchone()
-            if product and product['quantity'] >= deduct_qty:
-                new_qty = product['quantity'] - deduct_qty
-                total_sale_price = deduct_qty * product['price']
-                
-                cursor.execute('UPDATE products SET quantity = %s WHERE id = %s', (new_qty, p_id))
-                cursor.execute('INSERT INTO logs (user_email, product_name, brand, size, quantity_deducted, total_price) VALUES (%s, %s, %s, %s, %s, %s)',
-                             (session['user'], product['name'], product['brand'], product['size'], deduct_qty, total_sale_price))
-            else:
-                flash(f"Product '{product['name']}' does not have enough stock!")
-                
-        conn.commit()
-        cursor.close()
-        conn.close()
-        flash('All cart products successfully deducted from stock!')
-    except Exception as e:
-        flash(f'An error occurred: {str(e)}')
-        
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM products WHERE id = %s', (id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    flash('Product removed successfully!')
     return redirect(url_for('index'))
 
 @app.route('/reports')
