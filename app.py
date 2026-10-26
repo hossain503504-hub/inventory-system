@@ -87,30 +87,30 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI-Powered Inventory Management System</title>
+    <title>AI-Powered Inventory Management System - Dark Mode</title>
     <style>
-        body { font-family: sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; }
-        .container { max-width: 950px; margin: 0 auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h2, h3 { color: #2c3e50; margin-top: 10px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px; }
-        .user-info { font-size: 13px; color: #7f8c8d; }
-        .btn-logout { background: #e74c3c; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 12px; }
+        body { font-family: sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 10px; }
+        .container { max-width: 950px; margin: 0 auto; background: #1e293b; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #334155; }
+        h2, h3 { color: #f8fafc; margin-top: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 8px; margin-bottom: 15px; }
+        .user-info { font-size: 13px; color: #94a3b8; }
+        .btn-logout { background: #ef4444; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 12px; }
         .form-group { margin-bottom: 10px; }
-        input, select, textarea { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .btn { background: #27ae60; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-danger { background: #c0392b; padding: 8px 12px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #3498db; color: white; }
-        .flash { padding: 8px; background-color: #f8d7da; color: #721c24; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
+        input, select, textarea { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #334155; background-color: #0f172a; color: #f8fafc; border-radius: 4px; box-sizing: border-box; }
+        .btn { background: #10b981; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-danger { background: #ef4444; padding: 8px 12px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; background-color: #0f172a; }
+        th, td { border: 1px solid #334155; padding: 8px; text-align: left; color: #f8fafc; }
+        th { background-color: #3b82f6; color: white; }
+        .flash { padding: 8px; background-color: #7f1d1d; color: #fecaca; border: 1px solid #991b1b; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
         .nav-tabs { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 5px; }
-        .nav-tabs a { padding: 6px 10px; background: #e2e8f0; text-decoration: none; color: #333; border-radius: 4px; font-size: 13px; }
-        .nav-tabs a.active { background: #3498db; color: white; }
-        .stats-card { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 14px; }
+        .nav-tabs a { padding: 6px 10px; background: #334155; text-decoration: none; color: #cbd5e1; border-radius: 4px; font-size: 13px; }
+        .nav-tabs a.active { background: #6366f1; color: white; }
+        .stats-card { background: #0f172a; border-left: 4px solid #3b82f6; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 14px; border: 1px solid #334155; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
-        .ai-box { background: #e8f4fd; border: 1px solid #bbe1fa; padding: 15px; border-radius: 6px; margin-top: 15px; }
-        .cart-box { background: #fff8e1; border: 1px solid #ffe0b2; padding: 15px; border-radius: 6px; margin-top: 20px; }
+        .ai-box { background: #1e293b; border: 1px solid #3b82f6; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .cart-box { background: #1e293b; border: 1px solid #d97706; padding: 15px; border-radius: 6px; margin-top: 20px; }
         @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -146,7 +146,7 @@ HTML_TEMPLATE = '''
             {% if page == 'dashboard' %}
                 {% if session['role'] == 'admin' %}
                     <h3>➕ Add New Product / Brand Item</h3>
-                    <form action="/add_product" method="POST" style="margin-bottom: 20px; background: #fdfdfd; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <form action="/add_product" method="POST" style="margin-bottom: 20px; background: #0f172a; padding: 10px; border: 1px solid #334155; border-radius: 4px;">
                         <div class="form-group">
                             <input type="text" name="name" placeholder="Product Name (e.g. Baby Diaper)" required>
                         </div>
@@ -155,7 +155,7 @@ HTML_TEMPLATE = '''
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <select name="size" required style="flex: 1;">
-                                <option value="" disabled selected>Size</option>
+                                <option value="" disabled selected style="background-color: #0f172a;">Size</option>
                                 <option value="S">S</option>
                                 <option value="M">M</option>
                                 <option value="L">L</option>
@@ -173,9 +173,9 @@ HTML_TEMPLATE = '''
                 <h3>🔍 Search by Company / Brand Name</h3>
                 <form method="GET" action="/" class="search-box">
                     <input type="text" name="search" placeholder="Type company name (e.g. Huggies, Thai, Twinkle)..." value="{{ search_query }}">
-                    <button type="submit" class="btn" style="background: #3498db; white-space: nowrap;">Search</button>
+                    <button type="submit" class="btn" style="background: #3b82f6; white-space: nowrap;">Search</button>
                     {% if search_query %}
-                        <a href="/" class="btn" style="background: #95a5a6; text-decoration: none; display: flex; align-items: center;">Reset</a>
+                        <a href="/" class="btn" style="background: #475569; text-decoration: none; display: flex; align-items: center;">Reset</a>
                     {% endif %}
                 </form>
 
@@ -202,13 +202,13 @@ HTML_TEMPLATE = '''
                             <td>
                                 <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
                                     {% if session['role'] == 'admin' %}
-                                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #27ae60;" 
+                                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #10b981;" 
                                                 onclick="quickAddStock({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})')">
                                             ➕ Add
                                         </button>
                                         <a href="/delete_product/{{ p.id }}" class="btn-danger" style="padding: 4px 8px; font-size: 12px; text-decoration: none; display: inline-block; text-align: center; width: auto;" onclick="return confirm('Are you sure you want to remove this product?')">Remove</a>
                                     {% else %}
-                                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #f39c12;" 
+                                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #f59e0b;" 
                                                 onclick="addToCart({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})', {{ p.quantity }}, {{ p.price }})">
                                             🛒 Add to Cart
                                         </button>
@@ -218,7 +218,7 @@ HTML_TEMPLATE = '''
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" style="text-align: center; color: #7f8c8d;">No products found! Try another company name.</td>
+                            <td colspan="6" style="text-align: center; color: #94a3b8;">No products found! Try another company name.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -226,15 +226,15 @@ HTML_TEMPLATE = '''
 
                 {% if session['role'] != 'admin' %}
                 <div class="cart-box">
-                    <h3 style="margin-top: 0; color: #d35400;">🛒 Cart & Checkout (Deduct Stock)</h3>
+                    <h3 style="margin-top: 0; color: #fbbf24;">🛒 Cart & Checkout (Deduct Stock)</h3>
                     <div id="cart-items-container" style="font-size: 13px; margin-bottom: 10px;">
-                        <p style="color: #7f8c8d;">Your cart is empty. Add products from the stock list above.</p>
+                        <p style="color: #94a3b8;">Your cart is empty. Add products from the stock list above.</p>
                     </div>
                     <div id="checkout-section" style="display: none;">
                         <p><b>Total Amount: ৳<span id="cart-total">0.00</span></b></p>
                         <form action="/quick_deduct_stock" method="POST">
                             <input type="hidden" name="cart_data" id="cart_data_input">
-                            <button type="submit" class="btn" style="background: #e74c3c; width: 100%;">🚨 Confirm & Deduct Stock</button>
+                            <button type="submit" class="btn" style="background: #ef4444; width: 100%;">🚨 Confirm & Deduct Stock</button>
                         </form>
                     </div>
                 </div>
@@ -312,12 +312,12 @@ HTML_TEMPLATE = '''
                         let cartDataInput = document.getElementById('cart_data_input');
 
                         if (cart.length === 0) {
-                            container.innerHTML = '<p style="color: #7f8c8d;">Your cart is empty. Add products from the stock list above.</p>';
+                            container.innerHTML = '<p style="color: #94a3b8;">Your cart is empty. Add products from the stock list above.</p>';
                             checkoutSec.style.display = 'none';
                             return;
                         }
 
-                        let html = '<table style="background: white;"><tr><th>Product</th><th>Qty</th><th>Price</th><th>Action</th></tr>';
+                        let html = '<table style="background: #0f172a;"><tr><th>Product</th><th>Qty</th><th>Price</th><th>Action</th></tr>';
                         let total = 0;
                         cart.forEach(item => {
                             let subtotal = item.qty * item.price;
@@ -342,14 +342,14 @@ HTML_TEMPLATE = '''
                         <p>Total Qty Added: <b>{{ monthly_in_qty }}</b></p>
                         <p>Total Investment: <b>৳{{ "%.2f"|format(monthly_in_val) }}</b></p>
                     </div>
-                    <div class="stats-card" style="border-left-color: #e67e22;">
+                    <div class="stats-card" style="border-left-color: #f59e0b;">
                         <h4>📤 Monthly Sales (Overall)</h4>
                         <p>Total Qty Sold: <b>{{ monthly_out_qty }}</b></p>
                         <p>Total Sales Value: <b>৳{{ "%.2f"|format(monthly_out_val) }}</b></p>
                     </div>
                 </div>
 
-                <div class="stats-card" style="border-left-color: #27ae60; margin-top: 10px;">
+                <div class="stats-card" style="border-left-color: #10b981; margin-top: 10px;">
                     <h4>💰 Current Stock Assets (Overall)</h4>
                     <p>Total Products in Stock: <b>{{ total_stock_qty }} Pcs/Cartons</b></p>
                     <p>Total Asset Value: <b>৳{{ "%.2f"|format(total_stock_val) }}</b></p>
@@ -372,8 +372,8 @@ HTML_TEMPLATE = '''
                             <td><b>{{ b.brand }}</b></td>
                             <td><b>{{ b.current_qty if b.current_qty else 0 }}</b></td>
                             <td>৳{{ "%.2f"|format(b.current_val if b.current_val else 0.0) }}</td>
-                            <td style="color: green; font-weight: bold;">+{{ b.in_qty if b.in_qty else 0 }}</td>
-                            <td style="color: red; font-weight: bold;">-{{ b.out_qty if b.out_qty else 0 }}</td>
+                            <td style="color: #34d399; font-weight: bold;">+{{ b.in_qty if b.in_qty else 0 }}</td>
+                            <td style="color: #f87171; font-weight: bold;">-{{ b.out_qty if b.out_qty else 0 }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -397,7 +397,7 @@ HTML_TEMPLATE = '''
                             <td><b>{{ log.user_email }}</b></td>
                             <td>{{ log.brand }} - {{ log.product_name }}</td>
                             <td>{{ log.size }}</td>
-                            <td><span style="color:red; font-weight:bold;">-{{ log.quantity_deducted }}</span></td>
+                            <td><span style="color:#f87171; font-weight:bold;">-{{ log.quantity_deducted }}</span></td>
                             <td>৳{{ log.total_price }}</td>
                             <td>{{ log.timestamp }}</td>
                         </tr>
@@ -407,20 +407,20 @@ HTML_TEMPLATE = '''
 
             {% elif page == 'ai_advisor' and session['role'] == 'admin' %}
                 <h3>🤖 Gemini AI Stock & Business Advisor</h3>
-                <p style="font-size: 13px; color: #555;">Analyze inventory and sales data using Gemini AI and ask any business questions.</p>
+                <p style="font-size: 13px; color: #94a3b8;">Analyze inventory and sales data using Gemini AI and ask any business questions.</p>
                 
                 <form action="/ask_ai" method="POST" class="ai-box">
                     <div class="form-group">
                         <label><b>Ask Gemini AI (Type your question or prompt):</b></label>
                         <textarea name="ai_prompt" rows="3" placeholder="e.g., Which brand diaper sold the most this month? Or which brand stock should be increased?" required></textarea>
                     </div>
-                    <button type="submit" class="btn" style="background: #8e44ad;">Ask AI Assistant</button>
+                    <button type="submit" class="btn" style="background: #a855f7;">Ask AI Assistant</button>
                 </form>
 
                 {% if ai_response %}
-                    <div style="background: #fff; border: 1px solid #8e44ad; padding: 15px; border-radius: 6px; margin-top: 15px;">
-                        <h4 style="color: #8e44ad; margin-top: 0;">💡 Gemini AI Response:</h4>
-                        <p style="white-space: pre-line; line-height: 1.5; font-size: 14px;">{{ ai_response }}</p>
+                    <div style="background: #0f172a; border: 1px solid #a855f7; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                        <h4 style="color: #c084fc; margin-top: 0;">💡 Gemini AI Response:</h4>
+                        <p style="white-space: pre-line; line-height: 1.5; font-size: 14px; color: #f8fafc;">{{ ai_response }}</p>
                     </div>
                 {% endif %}
 
@@ -450,19 +450,19 @@ HTML_TEMPLATE = '''
                 </table>
 
             {% elif page == 'settings' and session['role'] == 'admin' %}
-                <div style="background: #fff5f5; border: 1px solid #feb2b2; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                    <h3 style="color: #c53030; margin-top: 0;">⚠️ Danger Zone: Emergency Database Reset</h3>
-                    <p style="font-size: 13px; color: #4a5568;">To prevent accidental clicks, type <b>DELETE</b> in the box below to enable database reset.</p>
+                <div style="background: #7f1d1d; border: 1px solid #991b1b; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <h3 style="color: #fca5a5; margin-top: 0;">⚠️ Danger Zone: Emergency Database Reset</h3>
+                    <p style="font-size: 13px; color: #cbd5e1;">To prevent accidental clicks, type <b>DELETE</b> in the box below to enable database reset.</p>
                     <form action="/reset_database_completely" method="POST">
                         <div class="form-group">
-                            <input type="text" name="confirmation_code" placeholder="Type DELETE here..." required style="border: 1px solid #feb2b2;">
+                            <input type="text" name="confirmation_code" placeholder="Type DELETE here..." required style="border: 1px solid #fca5a5;">
                         </div>
-                        <button type="submit" class="btn-danger" style="background: #c53030;">🗑️ Clear All Database Records</button>
+                        <button type="submit" class="btn-danger" style="background: #991b1b;">🗑️ Clear All Database Records</button>
                     </form>
                 </div>
 
                 <h3>⚙️ Change Admin Credentials</h3>
-                <form action="/update_admin" method="POST" style="background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                <form action="/update_admin" method="POST" style="background: #0f172a; padding: 15px; border: 1px solid #334155; border-radius: 4px;">
                     <div class="form-group">
                         <label>New Admin Email:</label>
                         <input type="email" name="email" value="{{ session['user'] }}" required>
@@ -497,7 +497,7 @@ HTML_TEMPLATE = '''
                     <button type="submit" class="btn" style="width: 100%;">Register Account</button>
                 </form>
                 <div style="text-align: center; margin-top: 15px; font-size: 13px;">
-                    <a href="/" style="color: #3498db; text-decoration: none;">Already have an account? Login here</a>
+                    <a href="/" style="color: #60a5fa; text-decoration: none;">Already have an account? Login here</a>
                 </div>
             {% else %}
                 <h2 style="text-align: center;">🔐 System Login</h2>
@@ -520,9 +520,9 @@ HTML_TEMPLATE = '''
                     <button type="submit" class="btn" style="width: 100%;">Login</button>
                 </form>
                 <div style="text-align: center; margin-top: 15px; font-size: 13px;">
-                    <a href="/register" style="color: #3498db; text-decoration: none;">Don't have an account? Create one (Sign Up)</a>
+                    <a href="/register" style="color: #60a5fa; text-decoration: none;">Don't have an account? Create one (Sign Up)</a>
                 </div>
-                <div style="margin-top: 15px; font-size: 12px; color: #666; background: #eef2f5; padding: 8px; border-radius: 4px;">
+                <div style="margin-top: 15px; font-size: 12px; color: #94a3b8; background: #0f172a; padding: 8px; border: 1px solid #334155; border-radius: 4px;">
                     <b>Default Logins:</b><br>
                     • Admin: <code>admin@system.com</code> / <code>admin123</code><br>
                     • Employee: <code>emp@system.com</code> / <code>emp123</code>
@@ -568,7 +568,6 @@ def register():
     try:
         cursor.execute('SELECT COUNT(*) as cnt FROM users')
         user_count = cursor.fetchone()['cnt']
-        # প্রথম যে ইউজার একাউন্ট খুলবে সে অটোমেটিক 'admin' হবে, বাকিরা 'employee' হবে
         role = 'admin' if user_count == 0 else 'employee'
         
         hashed_pass = generate_password_hash(password)
