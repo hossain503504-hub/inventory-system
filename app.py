@@ -382,6 +382,14 @@ HTML_TEMPLATE = '''
                 </table>
 
             {% elif page == 'settings' and session['role'] == 'admin' %}
+                <div style="background: #fff5f5; border: 1px solid #feb2b2; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <h3 style="color: #c53030; margin-top: 0;">⚠️ Danger Zone: Emergency Database Reset</h3>
+                    <p style="font-size: 13px; color: #4a5568;">This will clear all products, stock-in logs (reports), and sales history permanently!</p>
+                    <form action="/reset_database_completely" method="POST" onsubmit="return confirm('WARNING: This will delete all data permanently! Are you sure?')">
+                        <button type="submit" class="btn-danger" style="width: 100%; padding: 10px; font-size: 14px;">🗑️ Clear All Database Records</button>
+                    </form>
+                </div>
+
                 <h3>⚙️ Change Admin Credentials</h3>
                 <form action="/update_admin" method="POST" style="background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
                     <div class="form-group">
@@ -690,7 +698,6 @@ def delete_user(id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     conn = get_db()
-    cursor.cursor() # Keep or fix cursor assignment
     cursor = conn.cursor()
     cursor.execute('DELETE FROM users WHERE id = %s', (id,))
     conn.commit()
@@ -727,23 +734,25 @@ def update_admin():
     flash('Admin credentials updated successfully!')
     return redirect(url_for('settings'))
 
-# --- TEMPORARY DATABASE RESET ROUTE ---
-@app.route('/reset_database_completely')
+# --- SAFE PERMANENT DATABASE RESET ROUTE ---
+@app.route('/reset_database_completely', methods=['POST'])
 def reset_database_completely():
     if session.get('role') != 'admin':
-        return "Unauthorized Access! Please login as admin first."
+        flash('Unauthorized access!')
+        return redirect(url_for('index'))
+        
     conn = get_db()
     cursor = conn.cursor()
-    
     cursor.execute('DELETE FROM products;')
     cursor.execute('DELETE FROM stock_in_logs;')
     cursor.execute('DELETE FROM logs;')
-    
     conn.commit()
     cursor.close()
     conn.close()
-    return "Database has been completely cleared successfully! Now you can remove this route from your code."
-# -------------------------------------
+    
+    flash('Database and all reports have been completely cleared successfully!')
+    return redirect(url_for('settings'))
+# -------------------------------------------
 
 if __name__ == '__main__':
     init_db()
