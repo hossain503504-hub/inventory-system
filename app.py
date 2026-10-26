@@ -690,6 +690,7 @@ def delete_user(id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     conn = get_db()
+    cursor.cursor() # Keep or fix cursor assignment
     cursor = conn.cursor()
     cursor.execute('DELETE FROM users WHERE id = %s', (id,))
     conn.commit()
@@ -725,6 +726,24 @@ def update_admin():
     session['user'] = new_email
     flash('Admin credentials updated successfully!')
     return redirect(url_for('settings'))
+
+# --- TEMPORARY DATABASE RESET ROUTE ---
+@app.route('/reset_database_completely')
+def reset_database_completely():
+    if session.get('role') != 'admin':
+        return "Unauthorized Access! Please login as admin first."
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM products;')
+    cursor.execute('DELETE FROM stock_in_logs;')
+    cursor.execute('DELETE FROM logs;')
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return "Database has been completely cleared successfully! Now you can remove this route from your code."
+# -------------------------------------
 
 if __name__ == '__main__':
     init_db()
