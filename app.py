@@ -10,7 +10,6 @@ import google.generativeai as genai
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
 
-# ক্লাউড ডাটাবেজ কানেকশন (Render Environment থেকে DATABASE_URL নেবে)
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
@@ -79,7 +78,6 @@ def init_db():
     cursor.close()
     conn.close()
 
-# Gemini API Key 
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -203,10 +201,18 @@ HTML_TEMPLATE = '''
                             <td><b>{{ p.quantity }}</b></td>
                             <td>৳{{ p.price }}</td>
                             <td>
-                                <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #2980b9;" 
-                                        onclick="addToCart({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})', {{ p.quantity }}, {{ p.price }})">
-                                    🛒 Add to Cart
-                                </button>
+                                <div style="display: flex; gap: 5px; align-items: center;">
+                                    <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #2980b9;" 
+                                            onclick="addToCart({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})', {{ p.quantity }}, {{ p.price }})">
+                                        🛒 Add to Cart
+                                    </button>
+                                    {% if session['role'] == 'admin' %}
+                                        <button type="button" class="btn" style="padding: 4px 6px; font-size: 11px; background: #27ae60;" 
+                                                onclick="quickAddStock({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})')">
+                                            ➕ Add
+                                        </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% else %}
@@ -217,7 +223,6 @@ HTML_TEMPLATE = '''
                     </tbody>
                 </table>
 
-                <!-- Daraz Style Cart Section -->
                 <div id="cart-section" class="cart-floating" style="display: none;">
                     <h3 style="margin-top:0;">🛒 Warehouse Checkout Cart (Batch Cart)</h3>
                     <table>
@@ -229,7 +234,6 @@ HTML_TEMPLATE = '''
                             </tr>
                         </thead>
                         <tbody id="cart-table-body">
-                            <!-- Items will be added here via JavaScript -->
                         </tbody>
                     </table>
 
@@ -241,7 +245,6 @@ HTML_TEMPLATE = '''
                     </form>
                 </div>
 
-                <!-- Cart Management Script -->
                 <script>
                     let cart = [];
 
@@ -309,6 +312,36 @@ HTML_TEMPLATE = '''
 
                     function prepareCartSubmission() {
                         document.getElementById('cart_data_input').value = JSON.stringify(cart);
+                    }
+
+                    function quickAddStock(id, name) {
+                        let qtyToAdd = prompt("Enter quantity to add to stock for " + name + ":");
+                        if (qtyToAdd !== null && qtyToAdd.trim() !== "") {
+                            let q = parseInt(qtyToAdd);
+                            if (isNaN(q) || q <= 0) {
+                                alert("Please enter a valid positive number!");
+                                return;
+                            }
+                            
+                            let form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = '/quick_add_stock';
+                            
+                            let idInput = document.createElement('input');
+                            idInput.type = 'hidden';
+                            idInput.name = 'product_id';
+                            idInput.value = id;
+                            form.appendChild(idInput);
+                            
+                            let qtyInput = document.createElement('input');
+                            qtyInput.type = 'hidden';
+                            qtyInput.name = 'add_qty';
+                            qtyInput.value = q;
+                            form.appendChild(qtyInput);
+                            
+                            document.body.appendChild(form);
+                            form.submit();
+                        }
                     }
                 </script>
 
@@ -538,21 +571,58 @@ def add_product():
         flash('Only Admin can add products!')
         return redirect(url_for('index'))
         
-    name = request.form['name']
-    brand = request.form['brand']
-    size = request.form['size']
+    name = request.form['name'].strip()
+    brand = request.form['brand'].strip()
+    size = request.form['size'].strip()
     quantity = int(request.form['quantity'])
     price = float(request.form['price'])
     
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO products (name, brand, size, quantity, price) VALUES (%s, %s, %s, %s, %s)', (name, brand, size, quantity, price))
+    
+    cursor.execute('SELECT * FROM products WHERE LOWER(brand) = LOWER(%s) AND LOWER(name) = LOWER(%s) AND LOWER(size) = LOWER(%s)', (brand, name, size))
+    existing_product = cursor.fetchone()
+    
+    if existing_product:
+        new_qty = existing_product['quantity'] + quantity
+        cursor.execute('UPDATE products SET quantity = %s, price = %s WHERE id = %s', (new_qty, price, existing_product['id']))
+    else:
+        cursor.execute('INSERT INTO products (name, brand, size, quantity, price) VALUES (%s, %s, %s, %s, %s)', (name, brand, size, quantity, price))
+        
     cursor.execute('INSERT INTO stock_in_logs (admin_email, product_name, brand, size, quantity_added, price_per_unit) VALUES (%s, %s, %s, %s, %s, %s)',
                  (session['user'], name, brand, size, quantity, price))
     conn.commit()
     cursor.close()
     conn.close()
-    flash('Product added successfully!')
+    flash('Product added/updated successfully!')
+    return redirect(url_for('index'))
+
+@app.route('/quick_add_stock', methods=['POST'])
+def quick_add_stock():
+    if session.get('role') != 'admin':
+        flash('Only Admin can update stock!')
+        return redirect(url_for('index'))
+        
+    product_id = request.form.get('product_id')
+    add_qty = int(request.form.get('add_qty', 0))
+    
+    if product_id and add_qty > 0:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM products WHERE id = %s', (product_id,))
+        product = cursor.fetchone()
+        
+        if product:
+            new_qty = product['quantity'] + add_qty
+            cursor.execute('UPDATE products SET quantity = %s WHERE id = %s', (new_qty, product_id))
+            cursor.execute('INSERT INTO stock_in_logs (admin_email, product_name, brand, size, quantity_added, price_per_unit) VALUES (%s, %s, %s, %s, %s, %s)',
+                         (session['user'], product['name'], product['brand'], product['size'], add_qty, product['price']))
+            conn.commit()
+            flash(f"Successfully added {add_qty} pcs to {product['brand']} ({product['size']})!")
+        
+        cursor.close()
+        conn.close()
+        
     return redirect(url_for('index'))
 
 @app.route('/cart_deduct', methods=['POST'])
