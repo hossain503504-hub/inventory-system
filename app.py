@@ -1,22 +1,10 @@
 from flask import Flask, flash, redirect, render_template_string, request, session, url_for
-from flask_mail import Mail, Message
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
 import os
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
-
-# --- Flask-Mail Configuration ---
-# আপনার জিমেইল এবং App Password এখানে বসিয়ে নেবেন
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'your_email@gmail.com'  # আপনার জিমেইল দিন
-app.config['MAIL_PASSWORD'] = 'your_app_password'  # জিমেইলের App Password দিন
-app.config['MAIL_DEFAULT_SENDER'] = 'your_email@gmail.com'
-
-mail = Mail(app)
 
 DATABASE = 'inventory.db'
 
@@ -413,7 +401,7 @@ HTML_TEMPLATE = """
                     <label>Password:</label>
                     <input type="password" name="password" required placeholder="******">
                 </div>
-                <button type="submit" class="btn" style="width: 100%;">Register & Send Email</button>
+                <button type="submit" class="btn" style="width: 100%;">Register Account</button>
             </form>
             <div style="text-align: center; margin-top: 15px;">
                 <a href="/" style="color: #6366f1; text-decoration: none;">Already have an account? Login here</a>
@@ -484,7 +472,6 @@ def register():
 
   conn = get_db()
   try:
-    # প্রথম যে অ্যাকাউন্ট খুলবে সে স্বয়ংক্রিয়ভাবে admin হতে পারে, বাকিরা employee
     user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
     role = 'admin' if user_count == 0 else 'employee'
 
@@ -493,21 +480,6 @@ def register():
         (email, password, role),
     )
     conn.commit()
-
-    # জিমেইলে ওয়েলকাম মেসেজ পাঠানো
-    try:
-      msg = Message(
-          'Welcome to AI Inventory System!',
-          recipients=[email],
-      )
-      msg.body = (
-          f'Hello,\n\nYour account has been successfully created in AI'
-          f' Inventory System.\nYour Role: {role}\n\nThank you!'
-      )
-      mail.send(msg)
-    except Exception as e:
-      print('Mail Error:', e)
-
     flash('Account created successfully! Please login.')
     return redirect(url_for('index'))
   except sqlite3.IntegrityError:
@@ -607,7 +579,7 @@ def financials():
   if 'user' not in session:
     return redirect(url_for('index'))
 
-  conn = generate_financials = get_db()
+  conn = get_db()
   products = conn.execute('SELECT * FROM products').fetchall()
   conn.close()
 
