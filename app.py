@@ -98,7 +98,7 @@ HTML_TEMPLATE = '''
         .form-group { margin-bottom: 10px; }
         input, select, textarea { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn { background: #27ae60; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-danger { background: #c0392b; padding: 4px 8px; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; display: inline-block; text-align: center; }
+        .btn-danger { background: #c0392b; padding: 8px 12px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #3498db; color: white; }
@@ -205,7 +205,7 @@ HTML_TEMPLATE = '''
                                                 onclick="quickAddStock({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})')">
                                             ➕ Add
                                         </button>
-                                        <a href="/delete_product/{{ p.id }}" class="btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="return confirm('Are you sure you want to remove this product?')">Remove</a>
+                                        <a href="/delete_product/{{ p.id }}" class="btn-danger" style="padding: 4px 8px; font-size: 12px; text-decoration: none; display: inline-block; text-align: center;" onclick="return confirm('Are you sure you want to remove this product?')">Remove</a>
                                     {% else %}
                                         <span style="color: #7f8c8d; font-size: 12px;">View Only</span>
                                     {% endif %}
@@ -373,7 +373,7 @@ HTML_TEMPLATE = '''
                             <td>{{ emp.role }}</td>
                             <td>
                                 {% if emp.email != session['user'] %}
-                                    <a href="/delete_user/{{ emp.id }}" class="btn-danger" onclick="return confirm('Delete this user?')">Delete</a>
+                                    <a href="/delete_user/{{ emp.id }}" class="btn-danger" style="text-decoration: none; padding: 4px 8px; font-size: 12px; display: inline-block; text-align: center;" onclick="return confirm('Delete this user?')">Delete</a>
                                 {% endif %}
                             </td>
                         </tr>
@@ -384,9 +384,12 @@ HTML_TEMPLATE = '''
             {% elif page == 'settings' and session['role'] == 'admin' %}
                 <div style="background: #fff5f5; border: 1px solid #feb2b2; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
                     <h3 style="color: #c53030; margin-top: 0;">⚠️ Danger Zone: Emergency Database Reset</h3>
-                    <p style="font-size: 13px; color: #4a5568;">This will clear all products, stock-in logs (reports), and sales history permanently!</p>
-                    <form action="/reset_database_completely" method="POST" onsubmit="return confirm('WARNING: This will delete all data permanently! Are you sure?')">
-                        <button type="submit" class="btn-danger" style="width: 100%; padding: 10px; font-size: 14px;">🗑️ Clear All Database Records</button>
+                    <p style="font-size: 13px; color: #4a5568;">To prevent accidental clicks, type <b>DELETE</b> in the box below to enable database reset.</p>
+                    <form action="/reset_database_completely" method="POST">
+                        <div class="form-group">
+                            <input type="text" name="confirmation_code" placeholder="Type DELETE here..." required style="border: 1px solid #feb2b2;">
+                        </div>
+                        <button type="submit" class="btn-danger" style="background: #c53030;">🗑️ Clear All Database Records</button>
                     </form>
                 </div>
 
@@ -601,7 +604,7 @@ def reports():
             'current_qty': cur['qty'] if cur and cur['qty'] else 0,
             'current_val': cur['val'] if cur and cur['val'] else 0.0,
             'in_qty': in_res['qty'] if in_res and in_res['qty'] else 0,
-            'out_qty': out_res['qty'] if out_res and out_res['qty'] else 0
+            'out_qty': out_res['qty'] if out_res['qty'] else 0
         })
 
     cursor.execute('SELECT * FROM logs ORDER BY timestamp DESC')
@@ -734,12 +737,17 @@ def update_admin():
     flash('Admin credentials updated successfully!')
     return redirect(url_for('settings'))
 
-# --- SAFE PERMANENT DATABASE RESET ROUTE ---
+# --- SECURE PERMANENT DATABASE RESET ROUTE ---
 @app.route('/reset_database_completely', methods=['POST'])
 def reset_database_completely():
     if session.get('role') != 'admin':
         flash('Unauthorized access!')
         return redirect(url_for('index'))
+        
+    confirmation = request.form.get('confirmation_code', '').strip()
+    if confirmation != 'DELETE':
+        flash('Incorrect confirmation word! Database was not reset.')
+        return redirect(url_for('settings'))
         
     conn = get_db()
     cursor = conn.cursor()
@@ -752,7 +760,7 @@ def reset_database_completely():
     
     flash('Database and all reports have been completely cleared successfully!')
     return redirect(url_for('settings'))
-# -------------------------------------------
+# ---------------------------------------------
 
 if __name__ == '__main__':
     init_db()
