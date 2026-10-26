@@ -2,13 +2,19 @@ from flask import Flask, render_template_string, request, redirect, url_for, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import google.generativeai as genai
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
+
+# সেশন পার্মানেন্ট করার জন্য কুকির মেয়াদ ৩০ দিন সেট করা হলো
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(days=30)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
