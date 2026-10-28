@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, redirect, url_for, session, flash
+from flask import Flask, render_template_string, request, redirect, url_for, session, flash, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import json
@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import google.generativeai as genai
+import io
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
@@ -111,6 +112,15 @@ HTML_TEMPLATE = '''
         .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
         .ai-box { background: #1e293b; border: 1px solid #3b82f6; padding: 15px; border-radius: 6px; margin-top: 15px; }
         .cart-box { background: #1e293b; border: 1px solid #d97706; padding: 15px; border-radius: 6px; margin-top: 20px; }
+        
+        /* Futuristic Slideshow Banner Styling */
+        .slideshow-container { position: relative; width: 100%; height: 180px; overflow: hidden; border-radius: 8px; margin-bottom: 15px; border: 1px solid #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+        .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1s ease-in-out; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 15px; box-sizing: border-box; }
+        .slide.active { opacity: 1; }
+        .slide-content { background: rgba(15, 23, 42, 0.85); padding: 8px 12px; border-radius: 4px; border-left: 3px solid #10b981; width: 100%; }
+        .slide-content h4 { margin: 0; color: #38bdf8; font-size: 15px; }
+        .slide-content p { margin: 3px 0 0 0; font-size: 12px; color: #cbd5e1; }
+        .low-stock-alert { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; }
         @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -144,6 +154,39 @@ HTML_TEMPLATE = '''
             </div>
 
             {% if page == 'dashboard' %}
+                <!-- Futuristic Auto-Sliding Banner -->
+                <div class="slideshow-container">
+                    <div class="slide active" style="background-image: linear-gradient(rgba(15,23,42,0.4), rgba(15,23,42,0.9)), url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content">
+                            <h4>🚀 Next-Gen Automated Inventory</h4>
+                            <p>Real-time cloud database tracking with AI-powered forecasting and instantaneous stock auditing.</p>
+                        </div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.4), rgba(15,23,42,0.9)), url('https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content">
+                            <h4>📊 Advanced Financial Analytics</h4>
+                            <p>Track monthly cash flow, brand-wise performance, and instant PDF report generations seamlessly.</p>
+                        </div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.4), rgba(15,23,42,0.9)), url('https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content">
+                            <h4>🤖 Gemini AI Business Advisor</h4>
+                            <p>Get professional insights, low stock warnings, and data-driven suggestions instantly from AI.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    let currentSlide = 0;
+                    const slides = document.querySelectorAll('.slide');
+                    function nextSlide() {
+                        slides[currentSlide].classList.remove('active');
+                        currentSlide = (currentSlide + 1) % slides.length;
+                        slides[currentSlide].classList.add('active');
+                    }
+                    setInterval(nextSlide, 4000); // Change slide every 4 seconds
+                </script>
+
                 {% if session['role'] == 'admin' %}
                     <h3>➕ Add New Product / Brand Item</h3>
                     <form action="/add_product" method="POST" style="margin-bottom: 20px; background: #0f172a; padding: 10px; border: 1px solid #334155; border-radius: 4px;">
@@ -193,8 +236,8 @@ HTML_TEMPLATE = '''
                     </thead>
                     <tbody>
                         {% for p in products %}
-                        <tr>
-                            <td><b>{{ p.brand }}</b></td>
+                        <tr {% if p.quantity < 5 %}class="low-stock-alert"{% endif %}>
+                            <td><b>{{ p.brand }}</b> {% if p.quantity < 5 %}<span style="color:#ef4444; font-size:11px;">⚠️ Low Stock</span>{% endif %}</td>
                             <td>{{ p.name }}</td>
                             <td><b>{{ p.size }}</b></td>
                             <td><b>{{ p.quantity }}</b></td>
@@ -334,7 +377,10 @@ HTML_TEMPLATE = '''
                 </script>
 
             {% elif page == 'reports' and session['role'] == 'admin' %}
-                <h3>📈 Monthly & Financial Overview ({{ current_month }})</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3>📈 Monthly & Financial Overview ({{ current_month }})</h3>
+                    <a href="/download_report_pdf" class="btn" style="background: #3b82f6; text-decoration: none; font-size: 13px;">📥 Download PDF Report</a>
+                </div>
                 
                 <div class="grid-2">
                     <div class="stats-card">
@@ -779,6 +825,33 @@ def reports():
                                   total_stock_qty=total_stock_qty, total_stock_val=total_stock_val,
                                   brand_reports=brand_reports,
                                   logs=logs, active_tab='reports', current_month=current_month_str)
+
+@app.route('/download_report_pdf')
+def download_report_pdf():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    
+    current_month_str = datetime.now().strftime('%Y-%m')
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT SUM(quantity) as qty, SUM(quantity * price) as val FROM products")
+    products = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    # Simple HTML text format exportable as text/HTML or downloadable report
+    report_content = f"""
+    KHAN INVENTORY SYSTEM - FINANCIAL REPORT ({current_month_str})
+    --------------------------------------------------
+    Total Products in Stock: {products['qty'] if products and products['qty'] else 0} Pcs
+    Total Asset Value: BDT {products['val'] if products and products['val'] else 0.0}
+    Generated by: {session['user']}
+    Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    """
+    response = make_response(report_content)
+    response.headers["Content-Disposition"] = f"attachment; filename=inventory_report_{current_month_str}.txt"
+    response.headers["Content-Type"] = "text/plain"
+    return response
 
 @app.route('/ai_advisor')
 def ai_advisor():
