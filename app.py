@@ -404,9 +404,12 @@ HTML_TEMPLATE = '''
                 </script>
 
             {% elif page == 'reports' and session['role'] == 'admin' %}
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                     <h3>📈 Monthly & Financial Overview ({{ current_month }})</h3>
-                    <a href="/download_report_pdf" class="btn" style="background: #3b82f6; text-decoration: none; font-size: 13px;">📥 Download PDF Report</a>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="/download_official_invoice" class="btn" style="background: #3b82f6; text-decoration: none; font-size: 13px;" target="_blank">📄 Official Invoice HTML Report</a>
+                        <a href="/download_report_pdf" class="btn" style="background: #6366f1; text-decoration: none; font-size: 13px;">📥 TXT Report</a>
+                    </div>
                 </div>
                 
                 <div class="grid-2">
@@ -878,6 +881,147 @@ def download_report_pdf():
     response.headers["Content-Disposition"] = f"attachment; filename=inventory_report_{current_month_str}.txt"
     response.headers["Content-Type"] = "text/plain"
     return response
+
+# --- OFFICIAL INVOICE / MONTHLY REPORT TEMPLATE ROUTE ---
+@app.route('/download_official_invoice')
+def download_official_invoice():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+        
+    current_month_str = datetime.now().strftime('%Y-%m')
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s", (current_month_str,))
+    monthly_logs = cursor.fetchall()
+    
+    cursor.execute("SELECT SUM(quantity_deducted) as total_qty, SUM(total_price) as total_val FROM logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s", (current_month_str,))
+    summary = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    total_qty = summary['total_qty'] if summary and summary['total_qty'] else 0
+    total_val = summary['total_val'] if summary and summary['total_val'] else 0.0
+    
+    invoice_html = f'''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Official Monthly Report - Khan Inventory</title>
+        <style>
+            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 30px; }}
+            .invoice-box {{ max-width: 800px; margin: auto; padding: 30px; border: 1px solid #e5e7eb; box-shadow: 0 0 15px rgba(0,0,0,0.05); border-radius: 8px; background: #fff; }}
+            .header-table {{ width: 100%; border-bottom: 2px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 20px; }}
+            .header-table td {{ vertical-align: top; border: none; }}
+            .shop-title {{ font-size: 24px; font-weight: bold; color: #1e3a8a; margin: 0; }}
+            .shop-sub {{ font-size: 13px; color: #4b5563; margin-top: 4px; }}
+            .invoice-title {{ font-size: 22px; font-weight: bold; color: #374151; text-align: right; margin: 0; }}
+            .info-box {{ width: 100%; margin-bottom: 20px; font-size: 13px; color: #374151; }}
+            .info-box td {{ border: none; padding: 4px 0; }}
+            table.items {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }}
+            table.items th {{ background: #1e3a8a; color: white; padding: 10px; text-align: left; border: 1px solid #1e3a8a; }}
+            table.items td {{ padding: 10px; border: 1px solid #e5e7eb; }}
+            .totals-table {{ width: 320px; margin-left: auto; margin-top: 20px; font-size: 13px; border-collapse: collapse; }}
+            .totals-table td {{ padding: 8px; border: 1px solid #e5e7eb; }}
+            .grand-total {{ background: #1e3a8a; color: white; font-weight: bold; font-size: 15px; }}
+            .signature-section {{ margin-top: 60px; display: flex; justify-content: flex-end; }}
+            .sig-box {{ text-align: center; width: 220px; border-top: 2px solid #111827; padding-top: 8px; font-weight: bold; font-size: 14px; }}
+            @media print {{ body {{ padding: 0; }} .invoice-box {{ border: none; box-shadow: none; padding: 0; }} }}
+        </style>
+    </head>
+    <body onload="window.print()">
+        <div class="invoice-box">
+            <table class="header-table">
+                <tr>
+                    <td>
+                        <div class="shop-title">KHAN PHARMACY & INVENTORY</div>
+                        <div class="shop-sub">Shampa Super Market, Ring Road, Dhaka 1207<br>Phone: 01886-759596</div>
+                    </td>
+                    <td>
+                        <div class="invoice-title">OFFICIAL MONTHLY REPORT</div>
+                        <div style="font-size: 12px; color: #6b7280; text-align: right; margin-top: 5px;">
+                            Period: <b>{current_month_str}</b><br>
+                            Date: {datetime.now().strftime('%Y-%m-%d')}
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="info-box">
+                <tr>
+                    <td><b>Report Type:</b> Monthly Outflow & Sales Audit</td>
+                    <td style="text-align: right;"><b>Authorized Administrator:</b> {session['user']}</td>
+                </tr>
+            </table>
+
+            <table class="items">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">SL No.</th>
+                        <th>Item Description (Brand & Product)</th>
+                        <th>Size</th>
+                        <th>Quantity Sold</th>
+                        <th>Total Price (BDT)</th>
+                    </tr>
+                </thead>
+                <tbody>
+    ''`
+    
+    # Python code-এ লুপ চালিয়ে টেবিল রো তৈরি করা হচ্ছে
+    idx = 1
+    rows_html = ""
+    for log in monthly_logs:
+        rows_html += f"""
+        <tr>
+            <td>{idx}</td>
+            <td><b>{log['brand']}</b> - {log['product_name']}</td>
+            <td>{log['size']}</td>
+            <td>{log['quantity_deducted']} pcs</td>
+            <td>৳{log['total_price']:,.2f}</td>
+        </tr>
+        """
+        idx += 1
+        
+    if not monthly_logs:
+        rows_html = '<tr><td colspan="5" style="text-align: center; color: #6b7280;">No sales/outflow records found for this month.</td></tr>'
+        
+    invoice_html += rows_html
+    
+    invoice_html += f'''
+                </tbody>
+            </table>
+
+            <table class="totals-table">
+                <tr>
+                    <td><b>Total Quantity Sold:</b></td>
+                    <td style="text-align: right;"><b>{total_qty} pcs</b></td>
+                </tr>
+                <tr>
+                    <td><b>Subtotal Sales:</b></td>
+                    <td style="text-align: right;"><b>৳{total_val:,.2f}</b></td>
+                </tr>
+                <tr class="grand-total">
+                    <td>Grand Total:</td>
+                    <td style="text-align: right;">৳{total_val:,.2f}</td>
+                </tr>
+            </table>
+
+            <div style="margin-top: 30px; font-size: 12px; color: #4b5563; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                <b>Note:</b> This is an official system-generated monthly audit statement. All inventory movements are verified.
+            </div>
+
+            <div class="signature-section">
+                <div class="sig-box">
+                    Authorized Signature<br>
+                    <span style="font-size: 13px; font-weight: normal; color: #374151;">{session['user']}</span>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return invoice_html
+# --------------------------------------------------------
 
 @app.route('/ai_advisor')
 def ai_advisor():
