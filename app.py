@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import google.generativeai as genai
-import io
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
@@ -88,40 +87,49 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI-Powered Inventory Management System - Dark Mode</title>
+    <title>Khan Inventory - Futuristic Portal</title>
     <style>
-        body { font-family: sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 10px; }
-        .container { max-width: 950px; margin: 0 auto; background: #1e293b; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #334155; }
-        h2, h3 { color: #f8fafc; margin-top: 10px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 8px; margin-bottom: 15px; }
-        .user-info { font-size: 13px; color: #94a3b8; }
-        .btn-logout { background: #ef4444; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 12px; }
-        .form-group { margin-bottom: 10px; }
-        input, select, textarea { width: 100%; padding: 8px; margin-top: 3px; border: 1px solid #334155; background-color: #0f172a; color: #f8fafc; border-radius: 4px; box-sizing: border-box; }
-        .btn { background: #10b981; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-danger { background: #ef4444; padding: 8px 12px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; background-color: #0f172a; }
-        th, td { border: 1px solid #334155; padding: 8px; text-align: left; color: #f8fafc; }
-        th { background-color: #3b82f6; color: white; }
-        .flash { padding: 8px; background-color: #7f1d1d; color: #fecaca; border: 1px solid #991b1b; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
-        .nav-tabs { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 5px; }
-        .nav-tabs a { padding: 6px 10px; background: #334155; text-decoration: none; color: #cbd5e1; border-radius: 4px; font-size: 13px; }
-        .nav-tabs a.active { background: #6366f1; color: white; }
-        .stats-card { background: #0f172a; border-left: 4px solid #3b82f6; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 14px; border: 1px solid #334155; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: radial-gradient(circle at center, #090d16 0%, #020617 100%); color: #f8fafc; margin: 0; padding: 15px; min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); padding: 20px; border-radius: 14px; box-shadow: 0 0 30px rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
+        h2, h3 { color: #f8fafc; margin-top: 10px; letter-spacing: 0.5px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(51, 65, 85, 0.6); padding-bottom: 12px; margin-bottom: 20px; }
+        .user-info { font-size: 13px; color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.3); }
+        .btn-logout { background: linear-gradient(135deg, #ef4444, #991b1b); color: white; padding: 6px 14px; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: bold; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); transition: 0.3s; }
+        .btn-logout:hover { box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
+        .form-group { margin-bottom: 12px; }
+        input, select, textarea { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #334155; background-color: rgba(15, 23, 42, 0.8); color: #f8fafc; border-radius: 6px; box-sizing: border-box; outline: none; transition: 0.3s; }
+        input:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
+        .btn { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); transition: 0.3s; }
+        .btn:hover { box-shadow: 0 0 15px rgba(16, 185, 129, 0.7); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #b91c1c); padding: 8px 12px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; background-color: rgba(15, 23, 42, 0.6); border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid rgba(51, 65, 85, 0.5); padding: 10px; text-align: left; color: #f8fafc; }
+        th { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+        .flash { padding: 10px; background-color: rgba(127, 29, 29, 0.8); color: #fecaca; border: 1px solid #991b1b; border-radius: 6px; margin-bottom: 12px; font-size: 13px; box-shadow: 0 0 10px rgba(153, 27, 27, 0.4); }
+        .nav-tabs { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .nav-tabs a { padding: 8px 14px; background: rgba(51, 65, 85, 0.6); text-decoration: none; color: #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
+        .nav-tabs a.active { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 0 12px rgba(99, 102, 241, 0.5); }
+        .stats-card { background: rgba(15, 23, 42, 0.7); border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 10px; border-radius: 6px; font-size: 14px; border: 1px solid rgba(51, 65, 85, 0.5); box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
-        .ai-box { background: #1e293b; border: 1px solid #3b82f6; padding: 15px; border-radius: 6px; margin-top: 15px; }
-        .cart-box { background: #1e293b; border: 1px solid #d97706; padding: 15px; border-radius: 6px; margin-top: 20px; }
+        .ai-box { background: rgba(30, 41, 59, 0.8); border: 1px solid #3b82f6; padding: 18px; border-radius: 8px; margin-top: 15px; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
         
-        /* Futuristic Slideshow Banner Styling */
-        .slideshow-container { position: relative; width: 100%; height: 180px; overflow: hidden; border-radius: 8px; margin-bottom: 15px; border: 1px solid #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
-        .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1s ease-in-out; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 15px; box-sizing: border-box; }
-        .slide.active { opacity: 1; }
-        .slide-content { background: rgba(15, 23, 42, 0.85); padding: 8px 12px; border-radius: 4px; border-left: 3px solid #10b981; width: 100%; }
-        .slide-content h4 { margin: 0; color: #38bdf8; font-size: 15px; }
-        .slide-content p { margin: 3px 0 0 0; font-size: 12px; color: #cbd5e1; }
-        .low-stock-alert { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; }
-        @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+        /* Royal Futuristic Slideshow Banner */
+        .slideshow-container { position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(59, 130, 246, 0.5); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1.2s ease-in-out, transform 1.2s ease-in-out; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 18px; box-sizing: border-box; transform: scale(1.05); }
+        .slide.active { opacity: 1; transform: scale(1); }
+        .slide-content { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); padding: 10px 15px; border-radius: 6px; border-left: 4px solid #10b981; width: 100%; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .slide-content h4 { margin: 0; color: #38bdf8; font-size: 16px; text-shadow: 0 0 8px rgba(56, 189, 248, 0.4); }
+        .slide-content p { margin: 4px 0 0 0; font-size: 12px; color: #cbd5e1; }
+        
+        /* Royal Futuristic User Dashboard Enhancement */
+        .royal-user-banner { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(16, 185, 129, 0.15)); border: 1px solid rgba(99, 102, 241, 0.4); padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .royal-user-banner h3 { margin: 0; color: #38bdf8; font-size: 18px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
+        .royal-user-banner p { margin: 3px 0 0 0; font-size: 13px; color: #94a3b8; }
+        
+        .cart-box { background: rgba(30, 41, 59, 0.85); border: 1px solid #f59e0b; padding: 18px; border-radius: 8px; margin-top: 20px; box-shadow: 0 0 20px rgba(245, 158, 11, 0.2); }
+        .low-stock-alert { background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; }
+        @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } .royal-user-banner { flex-direction: column; align-items: flex-start; gap: 10px; } }
     </style>
 </head>
 <body>
@@ -129,10 +137,10 @@ HTML_TEMPLATE = '''
         {% if session.get('user') %}
             <div class="header">
                 <div>
-                    <h2>📦 AI Inventory System (Cloud DB)</h2>
-                    <div class="user-info">User: <b>{{ session['user'] }}</b> (<i>{{ session['role'] }}</i>)</div>
+                    <h2>⚡ KHAN INVENTORY // NEXUS PORTAL</h2>
+                    <div class="user-info">Operator: <b>{{ session['user'] }}</b> [<span>{{ session['role']|upper }}</span>]</div>
                 </div>
-                <a href="/logout" class="btn-logout">Logout</a>
+                <a href="/logout" class="btn-logout">LOGOUT ⏻</a>
             </div>
 
             {% with messages = get_flashed_messages() %}
@@ -144,7 +152,7 @@ HTML_TEMPLATE = '''
             {% endwith %}
 
             <div class="nav-tabs">
-                <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">Stock & Search</a>
+                <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">⚡ Stock & Nexus Search</a>
                 {% if session['role'] == 'admin' %}
                     <a href="/reports" class="{% if active_tab == 'reports' %}active{% endif %}">Reports & Financials</a>
                     <a href="/ai_advisor" class="{% if active_tab == 'ai_advisor' %}active{% endif %}">🤖 Gemini AI Advisor</a>
@@ -156,22 +164,22 @@ HTML_TEMPLATE = '''
             {% if page == 'dashboard' %}
                 <!-- Futuristic Auto-Sliding Banner -->
                 <div class="slideshow-container">
-                    <div class="slide active" style="background-image: linear-gradient(rgba(15,23,42,0.4), rgba(15,23,42,0.9)), url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1000&q=80')">
+                    <div class="slide active" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80')">
                         <div class="slide-content">
-                            <h4>🚀 Next-Gen Automated Inventory</h4>
-                            <p>Real-time cloud database tracking with AI-powered forecasting and instantaneous stock auditing.</p>
+                            <h4>🛡️ Quantum Secured Cloud Matrix</h4>
+                            <p>Real-time high-speed asset tracking and encrypted lightning-fast inventory synchronization.</p>
                         </div>
                     </div>
-                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.4), rgba(15,23,42,0.9)), url('https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1000&q=80')">
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=1000&q=80')">
                         <div class="slide-content">
-                            <h4>📊 Advanced Financial Analytics</h4>
-                            <p>Track monthly cash flow, brand-wise performance, and instant PDF report generations seamlessly.</p>
+                            <h4>💎 Royal User Experience & Smart Cart</h4>
+                            <p>Streamlined checkout, instantaneous stock clearance, and precision automated auditing.</p>
                         </div>
                     </div>
-                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.4), rgba(15,23,42,0.9)), url('https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=1000&q=80')">
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=1000&q=80')">
                         <div class="slide-content">
-                            <h4>🤖 Gemini AI Business Advisor</h4>
-                            <p>Get professional insights, low stock warnings, and data-driven suggestions instantly from AI.</p>
+                            <h4>🚀 Autonomous AI Logistics Advisor</h4>
+                            <p>Empowered with next-gen intelligence to optimize asset distribution and maximize efficiency.</p>
                         </div>
                     </div>
                 </div>
@@ -184,12 +192,12 @@ HTML_TEMPLATE = '''
                         currentSlide = (currentSlide + 1) % slides.length;
                         slides[currentSlide].classList.add('active');
                     }
-                    setInterval(nextSlide, 4000); // Change slide every 4 seconds
+                    setInterval(nextSlide, 4500);
                 </script>
 
                 {% if session['role'] == 'admin' %}
                     <h3>➕ Add New Product / Brand Item</h3>
-                    <form action="/add_product" method="POST" style="margin-bottom: 20px; background: #0f172a; padding: 10px; border: 1px solid #334155; border-radius: 4px;">
+                    <form action="/add_product" method="POST" style="margin-bottom: 20px; background: rgba(15, 23, 42, 0.8); padding: 12px; border: 1px solid #334155; border-radius: 8px;">
                         <div class="form-group">
                             <input type="text" name="name" placeholder="Product Name (e.g. Baby Diaper)" required>
                         </div>
@@ -209,20 +217,29 @@ HTML_TEMPLATE = '''
                             <input type="number" name="quantity" placeholder="Qty" required style="flex: 1;">
                             <input type="number" step="0.01" name="price" placeholder="Price" required style="flex: 1;">
                         </div>
-                        <button type="submit" class="btn" style="width: 100%; margin-top: 8px;">Add Product</button>
+                        <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Add Product to Matrix</button>
                     </form>
+                {% else %}
+                    <!-- Royal User Welcome Panel -->
+                    <div class="royal-user-banner">
+                        <div>
+                            <h3>👑 Welcome to the Royal User Terminal</h3>
+                            <p>Select required stock items securely, verify live quantities, and execute instant smart cart checkouts.</p>
+                        </div>
+                        <div style="font-size: 24px;">✨</div>
+                    </div>
                 {% endif %}
 
                 <h3>🔍 Search by Company / Brand Name</h3>
                 <form method="GET" action="/" class="search-box">
                     <input type="text" name="search" placeholder="Type company name (e.g. Huggies, Thai, Twinkle)..." value="{{ search_query }}">
-                    <button type="submit" class="btn" style="background: #3b82f6; white-space: nowrap;">Search</button>
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); white-space: nowrap;">Search Matrix</button>
                     {% if search_query %}
-                        <a href="/" class="btn" style="background: #475569; text-decoration: none; display: flex; align-items: center;">Reset</a>
+                        <a href="/" class="btn" style="background: #475569; text-decoration: none; display: flex; align-items: center; justify-content: center;">Reset</a>
                     {% endif %}
                 </form>
 
-                <h3>📊 Stock List</h3>
+                <h3>📊 Live Stock Catalog</h3>
                 <table>
                     <thead>
                         <tr>
@@ -245,15 +262,15 @@ HTML_TEMPLATE = '''
                             <td>
                                 <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
                                     {% if session['role'] == 'admin' %}
-                                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #10b981;" 
+                                        <button type="button" class="btn" style="padding: 5px 10px; font-size: 12px; background: #10b981;" 
                                                 onclick="quickAddStock({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})')">
                                             ➕ Add
                                         </button>
-                                        <a href="/delete_product/{{ p.id }}" class="btn-danger" style="padding: 4px 8px; font-size: 12px; text-decoration: none; display: inline-block; text-align: center; width: auto;" onclick="return confirm('Are you sure you want to remove this product?')">Remove</a>
+                                        <a href="/delete_product/{{ p.id }}" class="btn-danger" style="padding: 5px 10px; font-size: 12px; text-decoration: none; display: inline-block; text-align: center; width: auto;" onclick="return confirm('Are you sure you want to remove this product?')">Remove</a>
                                     {% else %}
-                                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 12px; background: #f59e0b;" 
+                                        <button type="button" class="btn" style="padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);" 
                                                 onclick="addToCart({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})', {{ p.quantity }}, {{ p.price }})">
-                                            🛒 Add to Cart
+                                            🛒 Add to Smart Cart
                                         </button>
                                     {% endif %}
                                 </div>
@@ -261,7 +278,7 @@ HTML_TEMPLATE = '''
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" style="text-align: center; color: #94a3b8;">No products found! Try another company name.</td>
+                            <td colspan="6" style="text-align: center; color: #94a3b8;">No products found in matrix! Try another company name.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -269,15 +286,15 @@ HTML_TEMPLATE = '''
 
                 {% if session['role'] != 'admin' %}
                 <div class="cart-box">
-                    <h3 style="margin-top: 0; color: #fbbf24;">🛒 Cart & Checkout (Deduct Stock)</h3>
-                    <div id="cart-items-container" style="font-size: 13px; margin-bottom: 10px;">
-                        <p style="color: #94a3b8;">Your cart is empty. Add products from the stock list above.</p>
+                    <h3 style="margin-top: 0; color: #fbbf24; display: flex; align-items: center; gap: 8px;">🛍️ Royal Smart Cart & Secure Checkout</h3>
+                    <div id="cart-items-container" style="font-size: 13px; margin-bottom: 12px;">
+                        <p style="color: #94a3b8;">Your cart is empty. Select products from the stock list above to begin.</p>
                     </div>
                     <div id="checkout-section" style="display: none;">
-                        <p><b>Total Amount: ৳<span id="cart-total">0.00</span></b></p>
+                        <p style="font-size: 15px;"><b>Total Estimated Amount: ৳<span id="cart-total" style="color: #38bdf8;">0.00</span></b></p>
                         <form action="/quick_deduct_stock" method="POST">
                             <input type="hidden" name="cart_data" id="cart_data_input">
-                            <button type="submit" class="btn" style="background: #ef4444; width: 100%;">🚨 Confirm & Deduct Stock</button>
+                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #ef4444, #991b1b); width: 100%; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);">🚀 Execute Secure Stock Clearance & Checkout</button>
                         </form>
                     </div>
                 </div>
@@ -317,7 +334,7 @@ HTML_TEMPLATE = '''
                     }
 
                     function addToCart(id, name, maxQty, price) {
-                        let qtyStr = prompt("Enter quantity for " + name + " (Available: " + maxQty + "):", "1");
+                        let qtyStr = prompt("Enter quantity for " + name + " (Available Stock: " + maxQty + "):", "1");
                         if (qtyStr !== null && qtyStr.trim() !== "") {
                             let q = parseInt(qtyStr);
                             if (isNaN(q) || q <= 0) {
@@ -355,17 +372,17 @@ HTML_TEMPLATE = '''
                         let cartDataInput = document.getElementById('cart_data_input');
 
                         if (cart.length === 0) {
-                            container.innerHTML = '<p style="color: #94a3b8;">Your cart is empty. Add products from the stock list above.</p>';
+                            container.innerHTML = '<p style="color: #94a3b8;">Your cart is empty. Select products from the stock list above to begin.</p>';
                             checkoutSec.style.display = 'none';
                             return;
                         }
 
-                        let html = '<table style="background: #0f172a;"><tr><th>Product</th><th>Qty</th><th>Price</th><th>Action</th></tr>';
+                        let html = '<table style="background: rgba(15, 23, 42, 0.8);"><tr><th>Selected Product</th><th>Qty</th><th>Subtotal</th><th>Action</th></tr>';
                         let total = 0;
                         cart.forEach(item => {
                             let subtotal = item.qty * item.price;
                             total += subtotal;
-                            html += `<tr><td>${item.name}</td><td><b>${item.qty}</b></td><td>৳${subtotal}</td><td><button type="button" class="btn-danger" style="padding: 2px 6px; font-size: 11px; width: auto;" onclick="removeFromCart(${item.id})">Remove</button></td></tr>`;
+                            html += `<tr><td>${item.name}</td><td><b>${item.qty}</b></td><td>৳${subtotal}</td><td><button type="button" class="btn-danger" style="padding: 3px 8px; font-size: 11px; width: auto;" onclick="removeFromCart(${item.id})">Remove</button></td></tr>`;
                         });
                         html += '</table>';
 
@@ -377,7 +394,7 @@ HTML_TEMPLATE = '''
                 </script>
 
             {% elif page == 'reports' and session['role'] == 'admin' %}
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h3>📈 Monthly & Financial Overview ({{ current_month }})</h3>
                     <a href="/download_report_pdf" class="btn" style="background: #3b82f6; text-decoration: none; font-size: 13px;">📥 Download PDF Report</a>
                 </div>
@@ -460,11 +477,11 @@ HTML_TEMPLATE = '''
                         <label><b>Ask Gemini AI (Type your question or prompt):</b></label>
                         <textarea name="ai_prompt" rows="3" placeholder="e.g., Which brand diaper sold the most this month? Or which brand stock should be increased?" required></textarea>
                     </div>
-                    <button type="submit" class="btn" style="background: #a855f7;">Ask AI Assistant</button>
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #a855f7, #7e22ce); box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);">Ask AI Assistant</button>
                 </form>
 
                 {% if ai_response %}
-                    <div style="background: #0f172a; border: 1px solid #a855f7; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                    <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid #a855f7; padding: 18px; border-radius: 8px; margin-top: 15px; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);">
                         <h4 style="color: #c084fc; margin-top: 0;">💡 Gemini AI Response:</h4>
                         <p style="white-space: pre-line; line-height: 1.5; font-size: 14px; color: #f8fafc;">{{ ai_response }}</p>
                     </div>
@@ -496,7 +513,7 @@ HTML_TEMPLATE = '''
                 </table>
 
             {% elif page == 'settings' and session['role'] == 'admin' %}
-                <div style="background: #7f1d1d; border: 1px solid #991b1b; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                <div style="background: rgba(127, 29, 29, 0.6); border: 1px solid #991b1b; padding: 18px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(153, 27, 27, 0.3);">
                     <h3 style="color: #fca5a5; margin-top: 0;">⚠️ Danger Zone: Emergency Database Reset</h3>
                     <p style="font-size: 13px; color: #cbd5e1;">To prevent accidental clicks, type <b>DELETE</b> in the box below to enable database reset.</p>
                     <form action="/reset_database_completely" method="POST">
@@ -508,7 +525,7 @@ HTML_TEMPLATE = '''
                 </div>
 
                 <h3>⚙️ Change Admin Credentials</h3>
-                <form action="/update_admin" method="POST" style="background: #0f172a; padding: 15px; border: 1px solid #334155; border-radius: 4px;">
+                <form action="/update_admin" method="POST" style="background: rgba(15, 23, 42, 0.8); padding: 18px; border: 1px solid #334155; border-radius: 8px;">
                     <div class="form-group">
                         <label>New Admin Email:</label>
                         <input type="email" name="email" value="{{ session['user'] }}" required>
@@ -568,7 +585,7 @@ HTML_TEMPLATE = '''
                 <div style="text-align: center; margin-top: 15px; font-size: 13px;">
                     <a href="/register" style="color: #60a5fa; text-decoration: none;">Don't have an account? Create one (Sign Up)</a>
                 </div>
-                <div style="margin-top: 15px; font-size: 12px; color: #94a3b8; background: #0f172a; padding: 8px; border: 1px solid #334155; border-radius: 4px;">
+                <div style="margin-top: 15px; font-size: 12px; color: #94a3b8; background: rgba(15, 23, 42, 0.8); padding: 10px; border: 1px solid #334155; border-radius: 6px;">
                     <b>Default Logins:</b><br>
                     • Admin: <code>admin@system.com</code> / <code>admin123</code><br>
                     • Employee: <code>emp@system.com</code> / <code>emp123</code>
@@ -839,7 +856,6 @@ def download_report_pdf():
     cursor.close()
     conn.close()
     
-    # Simple HTML text format exportable as text/HTML or downloadable report
     report_content = f"""
     KHAN INVENTORY SYSTEM - FINANCIAL REPORT ({current_month_str})
     --------------------------------------------------
@@ -952,7 +968,6 @@ def update_admin():
     flash('Admin credentials updated successfully!')
     return redirect(url_for('settings'))
 
-# --- SECURE PERMANENT DATABASE RESET ROUTE ---
 @app.route('/reset_database_completely', methods=['POST'])
 def reset_database_completely():
     if session.get('role') != 'admin':
@@ -975,7 +990,6 @@ def reset_database_completely():
     
     flash('Database and all reports have been completely cleared successfully!')
     return redirect(url_for('settings'))
-# ---------------------------------------------
 
 if __name__ == '__main__':
     init_db()
