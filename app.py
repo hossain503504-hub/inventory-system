@@ -887,9 +887,58 @@ def download_official_invoice():
     current_month_str = datetime.now().strftime('%Y-%m')
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s", (current_month_str,))
-    monthly_logs = cursor.fetchall()
     
+    # মাসিক বিক্রয় এবং স্টক-ইন ডেটা একসাথে বের করার জন্য কুয়েরি
+    cursor.execute("""
+        SELECT l.brand, l.product_name, l.size, 
+               COALESCE(SUM(l.quantity_deducted), 0) as sold_qty, 
+               COALESCE(SUM(l.total_price), 0) as total_val
+        FROM logs l
+        WHERE TO_CHAR(l.timestamp, 'YYYY-MM') = %s
+        GROUP BY l.brand, l.product_name, l.size
+    """, (current_month_str,))
+    monthly_sales = cursor.fetchall()
+    
+    rows_html = ""
+    idx = 1
+    for item in monthly_sales:
+        b_name = item['brand']
+        p_name = item['product_name']
+        p_size = item['size']
+        sold_q = item['sold_qty']
+        t_price = item['total_val']
+        
+        # মোট কত কার্টন স্টক ইন হয়েছিল তা বের করা
+        cursor.execute("""
+            SELECT COALESCE(SUM(quantity_added), 0) as total_in 
+            FROM stock_in_logs 
+            WHERE brand = %s AND product_name = %s AND size = %s AND TO_CHAR(timestamp, 'YYYY-MM') = %s
+        """, (b_name, p_name, p_size, current_month_str))
+        in_res = cursor.fetchone()
+        total_in_qty = in_res['total_in'] if in_res else 0
+        
+        # বর্তমানে লাইভ স্টক টেবিলে কত কার্টন আছে তা বের করা
+        cursor.execute("""
+            SELECT COALESCE(quantity, 0) as current_q 
+            FROM products 
+            WHERE brand = %s AND name = %s AND size = %s
+        """, (b_name, p_name, p_size))
+        prod_res = cursor.fetchone()
+        current_stock_qty = prod_res['current_q'] if prod_res else 0
+
+        rows_html += f"""
+        <tr>
+            <td>{idx}</td>
+            <td><b>{b_name}</b> - {p_name}</td>
+            <td>{p_size}</td>
+            <td style="text-align: center; color: #1e3a8a; font-weight: bold;">{total_in_qty} pcs</td>
+            <td style="text-align: center; color: #b45309; font-weight: bold;">{sold_q} pcs</td>
+            <td style="text-align: center; color: #047857; font-weight: bold;">{current_stock_qty} pcs</td>
+            <td style="text-align: right;">৳{t_price:,.2f}</td>
+        </tr>
+        """
+        idx += 1
+        
     cursor.execute("SELECT SUM(quantity_deducted) as total_qty, SUM(total_price) as total_val FROM logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s", (current_month_str,))
     summary = cursor.fetchone()
     cursor.close()
@@ -898,22 +947,8 @@ def download_official_invoice():
     total_qty = summary['total_qty'] if summary and summary['total_qty'] else 0
     total_val = summary['total_val'] if summary and summary['total_val'] else 0.0
     
-    rows_html = ""
-    idx = 1
-    for log in monthly_logs:
-        rows_html += f"""
-        <tr>
-            <td>{idx}</td>
-            <td><b>{log['brand']}</b> - {log['product_name']}</td>
-            <td>{log['size']}</td>
-            <td>{log['quantity_deducted']} pcs</td>
-            <td>৳{log['total_price']:,.2f}</td>
-        </tr>
-        """
-        idx += 1
-        
-    if not monthly_logs:
-        rows_html = '<tr><td colspan="5" style="text-align: center; color: #6b7280;">No sales/outflow records found for this month.</td></tr>'
+    if not monthly_sales:
+        rows_html = '<tr><td colspan="7" style="text-align: center; color: #6b7280;">No sales/outflow records found for this month.</td></tr>'
 
     invoice_html = f'''
     <!DOCTYPE html>
@@ -923,7 +958,7 @@ def download_official_invoice():
         <title>Official Monthly Report - Khan Inventory</title>
         <style>
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 30px; }}
-            .invoice-box {{ max-width: 800px; margin: auto; padding: 30px; border: 1px solid #e5e7eb; box-shadow: 0 0 15px rgba(0,0,0,0.05); border-radius: 8px; background: #fff; }}
+            .invoice-box {{ max-width: 900px; margin: auto; padding: 30px; border: 1px solid #e5e7eb; box-shadow: 0 0 15px rgba(0,0,0,0.05); border-radius: 8px; background: #fff; }}
             .header-table {{ width: 100%; border-bottom: 2px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 20px; border-collapse: collapse; }}
             .header-table td {{ vertical-align: top; border: none; }}
             .shop-title {{ font-size: 24px; font-weight: bold; color: #1e3a8a; margin: 0; }}
@@ -934,7 +969,7 @@ def download_official_invoice():
             table.items {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }}
             table.items th {{ background: #1e3a8a; color: white; padding: 10px; text-align: left; border: 1px solid #1e3a8a; }}
             table.items td {{ padding: 10px; border: 1px solid #e5e7eb; }}
-            .totals-table {{ width: 320px; margin-left: auto; margin-top: 20px; font-size: 13px; border-collapse: collapse; }}
+            .totals-table {{ width: 340px; margin-left: auto; margin-top: 20px; font-size: 13px; border-collapse: collapse; }}
             .totals-table td {{ padding: 8px; border: 1px solid #e5e7eb; }}
             .grand-total {{ background: #1e3a8a; color: white; font-weight: bold; font-size: 15px; }}
             .signature-section {{ margin-top: 60px; display: flex; justify-content: flex-end; }}
@@ -962,7 +997,7 @@ def download_official_invoice():
 
             <table class="info-box">
                 <tr>
-                    <td><b>Report Type:</b> Monthly Outflow & Sales Audit</td>
+                    <td><b>Report Type:</b> Comprehensive Stock & Sales Audit</td>
                     <td style="text-align: right;"><b>Authorized Administrator:</b> {session['user']}</td>
                 </tr>
             </table>
@@ -970,11 +1005,13 @@ def download_official_invoice():
             <table class="items">
                 <thead>
                     <tr>
-                        <th style="width: 50px;">SL No.</th>
+                        <th style="width: 45px;">SL</th>
                         <th>Item Description (Brand & Product)</th>
-                        <th>Size</th>
-                        <th>Quantity Sold</th>
-                        <th>Total Price (BDT)</th>
+                        <th style="width: 50px;">Size</th>
+                        <th style="text-align: center; width: 85px;">Total Stock In</th>
+                        <th style="text-align: center; width: 85px;">Quantity Sold</th>
+                        <th style="text-align: center; width: 85px;">Current Stock</th>
+                        <th style="text-align: right; width: 110px;">Total Price (BDT)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -998,7 +1035,7 @@ def download_official_invoice():
             </table>
 
             <div style="margin-top: 30px; font-size: 12px; color: #4b5563; border-top: 1px solid #e5e7eb; padding-top: 10px;">
-                <b>Note:</b> This is an official system-generated monthly audit statement. All inventory movements are verified.
+                <b>Note:</b> This official statement details initial stock-in, quantity sold, and remaining inventory balance for the active billing period.
             </div>
 
             <div class="signature-section">
