@@ -10,7 +10,6 @@ import google.generativeai as genai
 app = Flask(__name__)
 app.secret_key = 'super_secret_inventory_key'
 
-# সেশন পার্মানেন্ট করার জন্য কুকির মেয়াদ ৩০ দিন সেট করা হলো
 @app.before_request
 def make_session_permanent():
     session.permanent = True
@@ -114,7 +113,7 @@ HTML_TEMPLATE = '''
         .search-box { display: flex; gap: 8px; margin-bottom: 15px; }
         .ai-box { background: rgba(30, 41, 59, 0.8); border: 1px solid #3b82f6; padding: 18px; border-radius: 8px; margin-top: 15px; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
         
-        /* Royal Futuristic Slideshow Banner */
+        /* 10 Futuristic Slideshow Banners */
         .slideshow-container { position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(59, 130, 246, 0.5); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
         .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 1.2s ease-in-out, transform 1.2s ease-in-out; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 18px; box-sizing: border-box; transform: scale(1.05); }
         .slide.active { opacity: 1; transform: scale(1); }
@@ -122,7 +121,6 @@ HTML_TEMPLATE = '''
         .slide-content h4 { margin: 0; color: #38bdf8; font-size: 16px; text-shadow: 0 0 8px rgba(56, 189, 248, 0.4); }
         .slide-content p { margin: 4px 0 0 0; font-size: 12px; color: #cbd5e1; }
         
-        /* Royal Futuristic User Dashboard Enhancement */
         .royal-user-banner { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(16, 185, 129, 0.15)); border: 1px solid rgba(99, 102, 241, 0.4); padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); display: flex; justify-content: space-between; align-items: center; }
         .royal-user-banner h3 { margin: 0; color: #38bdf8; font-size: 18px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
         .royal-user-banner p { margin: 3px 0 0 0; font-size: 13px; color: #94a3b8; }
@@ -162,25 +160,37 @@ HTML_TEMPLATE = '''
             </div>
 
             {% if page == 'dashboard' %}
-                <!-- Futuristic Auto-Sliding Banner -->
+                <!-- 10 Auto-Sliding Futuristic Banners -->
                 <div class="slideshow-container">
                     <div class="slide active" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80')">
-                        <div class="slide-content">
-                            <h4>🛡️ Quantum Secured Cloud Matrix</h4>
-                            <p>Real-time high-speed asset tracking and encrypted lightning-fast inventory synchronization.</p>
-                        </div>
+                        <div class="slide-content"><h4>🛡️ Quantum Secured Cloud Matrix</h4><p>Real-time high-speed asset tracking and encrypted lightning-fast inventory synchronization.</p></div>
                     </div>
                     <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=1000&q=80')">
-                        <div class="slide-content">
-                            <h4>💎 Royal User Experience & Smart Cart</h4>
-                            <p>Streamlined checkout, instantaneous stock clearance, and precision automated auditing.</p>
-                        </div>
+                        <div class="slide-content"><h4>💎 Royal User Experience & Smart Cart</h4><p>Streamlined checkout, instantaneous stock clearance, and precision automated auditing.</p></div>
                     </div>
                     <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=1000&q=80')">
-                        <div class="slide-content">
-                            <h4>🚀 Autonomous AI Logistics Advisor</h4>
-                            <p>Empowered with next-gen intelligence to optimize asset distribution and maximize efficiency.</p>
-                        </div>
+                        <div class="slide-content"><h4>🚀 Autonomous AI Logistics Advisor</h4><p>Empowered with next-gen intelligence to optimize asset distribution and maximize efficiency.</p></div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content"><h4>🌐 Cybernetic Network Operations</h4><p>Advanced digital matrix providing seamless control over multi-location stock items.</p></div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content"><h4>⚡ High-Velocity Data Processing</h4><p>Lightning-fast database response times built for enterprise-grade scalability.</p></div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content"><h4>🔮 Next-Gen Predictive Analytics</h4><p>Forecasting inventory requirements intelligently using state-of-the-art machine learning models.</p></div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content"><h4>💻 Neural Core Processing</h4><p>Absolute stability with isolated session controls and bulletproof operational security.</p></div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content"><h4>🌟 Holographic Visual Dashboard</h4><p>Immersive futuristic dark-mode UI designed meticulously for supreme user comfort.</p></div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content"><h4>🌌 Infinite Cloud Connectivity</h4><p>Zero downtime synchronization ensuring complete operational continuity round the clock.</p></div>
+                    </div>
+                    <div class="slide" style="background-image: linear-gradient(rgba(15,23,42,0.3), rgba(15,23,42,0.95)), url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=1000&q=80')">
+                        <div class="slide-content"><h4>⚙️ Automated Stock Auditing</h4><p>Eliminate manual reconciliation errors with precision automated inventory logs.</p></div>
                     </div>
                 </div>
 
@@ -253,8 +263,8 @@ HTML_TEMPLATE = '''
                     </thead>
                     <tbody>
                         {% for p in products %}
-                        <tr {% if p.quantity < 5 %}class="low-stock-alert"{% endif %}>
-                            <td><b>{{ p.brand }}</b> {% if p.quantity < 5 %}<span style="color:#ef4444; font-size:11px;">⚠️ Low Stock</span>{% endif %}</td>
+                        <tr {% if session['role'] == 'admin' and p.quantity < 5 %}class="low-stock-alert"{% endif %}>
+                            <td><b>{{ p.brand }}</b> {% if session['role'] == 'admin' and p.quantity < 5 %}<span style="color:#ef4444; font-size:11px;">⚠️ Low Stock</span>{% endif %}</td>
                             <td>{{ p.name }}</td>
                             <td><b>{{ p.size }}</b></td>
                             <td><b>{{ p.quantity }}</b></td>
