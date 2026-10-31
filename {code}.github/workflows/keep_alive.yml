@@ -1,0 +1,14 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # প্রতিদিন বাংলাদেশ সময় দুপুর ১২টায় (UTC সকাল ৬টায়) রান হবে
+  workflow_dispatch:
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Keep-Alive Endpoint
+        run: |
+          curl -s https://inventory-system-g6nw.onrender.com/keep-alive
