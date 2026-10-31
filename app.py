@@ -1176,3 +1176,14 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+@app.route('/keep-alive')
+def keep_alive():
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1;")
+        cursor.close()
+        conn.close()
+        return "Database and Render are active!", 200
+    except Exception as e:
+        return f"Error: {str(e)}", 500
