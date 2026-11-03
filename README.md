@@ -1,5 +1,7 @@
 # 📦 Khan Enterprise Multi-Vendor Inventory & Stock Neural Engine
 
+https://inventory-system-g6nw.onrender.com
+
 [![Security](https://img.shields.io/badge/Security-Zero--Trust%20%7C%20RBAC-red?style=for-the-badge&logo=springsecurity)](https://github.com/hossain53504-hub/inventory-system)
 [![AI Engine](https://img.shields.io/badge/AI%20Core-Gemini%20Flash%20Predictive%20Analytics-blueviolet?style=for-the-badge&logo=google)](https://github.com/hossain53504-hub/inventory-system)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL%20Relational%20Cluster-blue?style=for-the-badge&logo=postgresql)](https://github.com/hossain53504-hub/inventory-system)
