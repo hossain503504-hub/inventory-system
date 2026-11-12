@@ -95,6 +95,8 @@ HTML_TEMPLATE = '''
         .user-info { font-size: 13px; color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.3); }
         .btn-logout { background: linear-gradient(135deg, #ef4444, #991b1b); color: white; padding: 6px 14px; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: bold; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); transition: 0.3s; }
         .btn-logout:hover { box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
+        .back-nav { display: inline-flex; align-items: center; gap: 6px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: #38bdf8; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 15px; transition: 0.3s; }
+        .back-nav:hover { background: rgba(59, 130, 246, 0.4); box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
         .form-group { margin-bottom: 12px; }
         input, select, textarea { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #334155; background-color: rgba(15, 23, 42, 0.8); color: #f8fafc; border-radius: 6px; box-sizing: border-box; outline: none; transition: 0.3s; }
         input:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
@@ -147,6 +149,10 @@ HTML_TEMPLATE = '''
                 {% endfor %}
               {% endif %}
             {% endwith %}
+
+            {% if page != 'dashboard' %}
+                <a href="/" class="back-nav">⬅ Back to Dashboard</a>
+            {% endif %}
 
             <div class="nav-tabs">
                 <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">⚡ Stock & Nexus Search</a>
@@ -480,7 +486,10 @@ HTML_TEMPLATE = '''
                 </table>
 
             {% elif page == 'stock_in_history' and session['role'] == 'admin' %}
-                <h3>📦 Comprehensive Stock In History Log</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                    <h3>📦 Comprehensive Stock In History Log</h3>
+                    <a href="/download_stock_in_invoice" class="btn" style="background: #3b82f6; text-decoration: none; font-size: 13px;" target="_blank">📄 Official Stock-In Invoice</a>
+                </div>
                 <p style="font-size: 13px; color: #94a3b8;">Detailed history of all stock items added, showing exact dates, quantities, and company/brand details.</p>
                 <table>
                     <thead>
@@ -1081,6 +1090,150 @@ def download_official_invoice():
 
             <div style="margin-top: 30px; font-size: 12px; color: #4b5563; border-top: 1px solid #e5e7eb; padding-top: 10px;">
                 <b>Note:</b> This official statement details initial stock-in, quantity sold, and remaining inventory balance for the active billing period.
+            </div>
+
+            <div class="signature-section">
+                <div class="sig-box">
+                    Authorized Signature<br>
+                    <span style="font-size: 13px; font-weight: normal; color: #374151;">Md Hossain Khan</span>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return invoice_html
+
+@app.route('/download_stock_in_invoice')
+def download_stock_in_invoice():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+        
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM stock_in_logs ORDER BY timestamp DESC')
+    stock_in_logs = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    rows_html = ""
+    idx = 1
+    total_added_qty = 0
+    total_inv_val = 0.0
+    
+    for item in stock_in_logs:
+        b_name = item['brand']
+        p_name = item['product_name']
+        p_size = item['size']
+        q_added = item['quantity_added']
+        p_unit = item['price_per_unit']
+        sub_total = q_added * p_unit
+        t_stamp = item['timestamp']
+        
+        total_added_qty += q_added
+        total_inv_val += sub_total
+
+        rows_html += f"""
+        <tr>
+            <td>{idx}</td>
+            <td>{t_stamp}</td>
+            <td><b>{b_name}</b> - {p_name}</td>
+            <td>{p_size}</td>
+            <td style="text-align: center; color: #047857; font-weight: bold;">+{q_added} pcs</td>
+            <td style="text-align: right;">৳{p_unit:,.2f}</td>
+            <td style="text-align: right;">৳{sub_total:,.2f}</td>
+        </tr>
+        """
+        idx += 1
+        
+    if not stock_in_logs:
+        rows_html = '<tr><td colspan="7" style="text-align: center; color: #6b7280;">No stock-in records found.</td></tr>'
+
+    invoice_html = f'''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Stock-In Invoice - Khan Inventory</title>
+        <style>
+            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #ffffff; color: #111827; margin: 0; padding: 30px; }}
+            .invoice-box {{ max-width: 900px; margin: auto; padding: 30px; border: 1px solid #e5e7eb; box-shadow: 0 0 15px rgba(0,0,0,0.05); border-radius: 8px; background: #fff; }}
+            .header-table {{ width: 100%; border-bottom: 2px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 20px; border-collapse: collapse; }}
+            .header-table td {{ vertical-align: top; border: none; }}
+            .shop-title {{ font-size: 24px; font-weight: bold; color: #1e3a8a; margin: 0; }}
+            .shop-sub {{ font-size: 13px; color: #4b5563; margin-top: 4px; }}
+            .invoice-title {{ font-size: 22px; font-weight: bold; color: #374151; text-align: right; margin: 0; }}
+            .info-box {{ width: 100%; margin-bottom: 20px; font-size: 13px; color: #374151; border-collapse: collapse; }}
+            .info-box td {{ border: none; padding: 4px 0; }}
+            table.items {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }}
+            table.items th {{ background: #1e3a8a; color: white; padding: 10px; text-align: left; border: 1px solid #1e3a8a; }}
+            table.items td {{ padding: 10px; border: 1px solid #e5e7eb; }}
+            .totals-table {{ width: 340px; margin-left: auto; margin-top: 20px; font-size: 13px; border-collapse: collapse; }}
+            .totals-table td {{ padding: 8px; border: 1px solid #e5e7eb; }}
+            .grand-total {{ background: #1e3a8a; color: white; font-weight: bold; font-size: 15px; }}
+            .signature-section {{ margin-top: 60px; display: flex; justify-content: flex-end; }}
+            .sig-box {{ text-align: center; width: 220px; border-top: 2px solid #111827; padding-top: 8px; font-weight: bold; font-size: 14px; }}
+            @media print {{ body {{ padding: 0; }} .invoice-box {{ border: none; box-shadow: none; padding: 0; }} }}
+        </style>
+    </head>
+    <body onload="window.print()">
+        <div class="invoice-box">
+            <table class="header-table">
+                <tr>
+                    <td>
+                        <div class="shop-title">KHAN PHARMACY & INVENTORY</div>
+                        <div class="shop-sub">Shampa Super Market, Ring Road, Dhaka 1207<br>Phone: 01886-759596</div>
+                    </td>
+                    <td>
+                        <div class="invoice-title">STOCK-IN INVOICE REPORT</div>
+                        <div style="font-size: 12px; color: #6b7280; text-align: right; margin-top: 5px;">
+                            Date: {datetime.now().strftime('%Y-%m-%d')}
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="info-box">
+                <tr>
+                    <td><b>Report Type:</b> Incoming Stock / Inventory Purchases Log</td>
+                    <td style="text-align: right;"><b>Authorized Administrator:</b> {session['user']}</td>
+                </tr>
+            </table>
+
+            <table class="items">
+                <thead>
+                    <tr>
+                        <th style="width: 45px;">SL</th>
+                        <th style="width: 140px;">Timestamp</th>
+                        <th>Item Description (Brand & Product)</th>
+                        <th style="width: 50px;">Size</th>
+                        <th style="text-align: center; width: 85px;">Qty Added</th>
+                        <th style="text-align: right; width: 90px;">Price/Unit</th>
+                        <th style="text-align: right; width: 110px;">Total (BDT)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+
+            <table class="totals-table">
+                <tr>
+                    <td><b>Total Quantity Added:</b></td>
+                    <td style="text-align: right;"><b>{total_added_qty} pcs</b></td>
+                </tr>
+                <tr>
+                    <td><b>Total Investment:</b></td>
+                    <td style="text-align: right;"><b>৳{total_inv_val:,.2f}</b></td>
+                </tr>
+                <tr class="grand-total">
+                    <td>Grand Total:</td>
+                    <td style="text-align: right;">৳{total_inv_val:,.2f}</td>
+                </tr>
+            </table>
+
+            <div style="margin-top: 30px; font-size: 12px; color: #4b5563; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                <b>Note:</b> This official document records all stock purchases and incoming items added to the inventory matrix.
             </div>
 
             <div class="signature-section">
