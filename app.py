@@ -156,13 +156,11 @@ HTML_TEMPLATE = '''
 
             <div class="nav-tabs">
                 <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">⚡ Stock & Nexus Search</a>
-                {% if session['role'] in ['admin', 'manager'] %}
+                {% if session['role'] == 'admin' %}
                     <a href="/reports" class="{% if active_tab == 'reports' %}active{% endif %}">Reports & Financials</a>
                     <a href="/stock_in_history" class="{% if active_tab == 'stock_in_history' %}active{% endif %}">📦 Stock In History</a>
                     <a href="/ai_advisor" class="{% if active_tab == 'ai_advisor' %}active{% endif %}">🤖 Gemini AI Advisor</a>
-                {% endif %}
-                {% if session['role'] == 'admin' %}
-                    <a href="/employees" class="{% if active_tab == 'employees' %}active{% endif %}">Manage Employees & Roles</a>
+                    <a href="/employees" class="{% if active_tab == 'employees' %}active{% endif %}">Manage Employees</a>
                     <a href="/settings" class="{% if active_tab == 'settings' %}active{% endif %}">Admin Settings</a>
                 {% endif %}
             </div>
@@ -212,7 +210,7 @@ HTML_TEMPLATE = '''
                     setInterval(nextSlide, 4500);
                 </script>
 
-                {% if session['role'] in ['admin', 'manager'] %}
+                {% if session['role'] == 'admin' %}
                     <h3>➕ Add New Product / Brand Item</h3>
                     <form action="/add_product" method="POST" style="margin-bottom: 20px; background: rgba(15, 23, 42, 0.8); padding: 12px; border: 1px solid #334155; border-radius: 8px;">
                         <div class="form-group">
@@ -269,24 +267,21 @@ HTML_TEMPLATE = '''
                     </thead>
                     <tbody>
                         {% for p in products %}
-                        <tr {% if session['role'] in ['admin', 'manager'] and p.quantity < 5 %}class="low-stock-alert"{% endif %}>
-                            <td><b>{{ p.brand }}</b> {% if session['role'] in ['admin', 'manager'] and p.quantity < 5 %}<span style="color:#ef4444; font-size:11px;">⚠️ Low Stock</span>{% endif %}</td>
+                        <tr {% if session['role'] == 'admin' and p.quantity < 5 %}class="low-stock-alert"{% endif %}>
+                            <td><b>{{ p.brand }}</b> {% if session['role'] == 'admin' and p.quantity < 5 %}<span style="color:#ef4444; font-size:11px;">⚠️ Low Stock</span>{% endif %}</td>
                             <td>{{ p.name }}</td>
                             <td><b>{{ p.size }}</b></td>
                             <td><b>{{ p.quantity }}</b></td>
                             <td>৳{{ p.price }}</td>
                             <td>
                                 <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
-                                    {% if session['role'] in ['admin', 'manager'] %}
+                                    {% if session['role'] == 'admin' %}
                                         <button type="button" class="btn" style="padding: 5px 10px; font-size: 12px; background: #10b981;" 
                                                 onclick="quickAddStock({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})')">
                                             ➕ Add
                                         </button>
-                                    {% endif %}
-                                    {% if session['role'] == 'admin' %}
                                         <a href="/delete_product/{{ p.id }}" class="btn-danger" style="padding: 5px 10px; font-size: 12px; text-decoration: none; display: inline-block; text-align: center; width: auto;" onclick="return confirm('Are you sure you want to remove this product?')">Remove</a>
-                                    {% endif %}
-                                    {% if session['role'] == 'employee' %}
+                                    {% else %}
                                         <button type="button" class="btn" style="padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);" 
                                                 onclick="addToCart({{ p.id }}, '{{ p.brand }} - {{ p.name }} ({{ p.size }})', {{ p.quantity }}, {{ p.price }})">
                                             🛒 Add to Smart Cart
@@ -303,7 +298,7 @@ HTML_TEMPLATE = '''
                     </tbody>
                 </table>
 
-                {% if session['role'] == 'employee' %}
+                {% if session['role'] != 'admin' %}
                 <div class="cart-box">
                     <h3 style="margin-top: 0; color: #fbbf24; display: flex; align-items: center; gap: 8px;">🛍️ Royal Smart Cart & Secure Checkout</h3>
                     <div id="cart-items-container" style="font-size: 13px; margin-bottom: 12px;">
@@ -412,7 +407,7 @@ HTML_TEMPLATE = '''
                     }
                 </script>
 
-            {% elif page == 'reports' and session['role'] in ['admin', 'manager'] %}
+            {% elif page == 'reports' and session['role'] == 'admin' %}
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                     <h3>📈 Monthly & Financial Overview ({{ current_month }})</h3>
                     <div style="display: flex; gap: 8px;">
@@ -490,12 +485,12 @@ HTML_TEMPLATE = '''
                     </tbody>
                 </table>
 
-            {% elif page == 'stock_in_history' and session['role'] in ['admin', 'manager'] %}
+            {% elif page == 'stock_in_history' and session['role'] == 'admin' %}
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                    <h3>📦 Comprehensive Stock In History Log ({{ current_month }})</h3>
+                    <h3>📦 Comprehensive Stock In History Log</h3>
                     <a href="/download_stock_in_invoice" class="btn" style="background: #3b82f6; text-decoration: none; font-size: 13px;" target="_blank">📄 Official Stock-In Invoice</a>
                 </div>
-                <p style="font-size: 13px; color: #94a3b8;">Detailed history of current month's stock items added, showing exact dates, quantities, and company/brand details.</p>
+                <p style="font-size: 13px; color: #94a3b8;">Detailed history of all stock items added, showing exact dates, quantities, and company/brand details.</p>
                 <table>
                     <thead>
                         <tr>
@@ -519,13 +514,13 @@ HTML_TEMPLATE = '''
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" style="text-align: center; color: #94a3b8;">No stock-in history records found for this month.</td>
+                            <td colspan="6" style="text-align: center; color: #94a3b8;">No stock-in history records found.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
 
-            {% elif page == 'ai_advisor' and session['role'] in ['admin', 'manager'] %}
+            {% elif page == 'ai_advisor' and session['role'] == 'admin' %}
                 <h3>🤖 Gemini AI Stock & Business Advisor</h3>
                 <p style="font-size: 13px; color: #94a3b8;">Analyze inventory and sales data using Gemini AI and ask any business questions.</p>
                 
@@ -545,7 +540,7 @@ HTML_TEMPLATE = '''
                 {% endif %}
 
             {% elif page == 'employees' and session['role'] == 'admin' %}
-                <h3>👥 Employee & Manager List</h3>
+                <h3>👥 Employee List</h3>
                 <table>
                     <thead>
                         <tr>
@@ -558,16 +553,7 @@ HTML_TEMPLATE = '''
                         {% for emp in employees %}
                         <tr>
                             <td>{{ emp.email }}</td>
-                            <td>
-                                <form action="/update_user_role/{{ emp.id }}" method="POST" style="display: flex; gap: 6px; align-items: center;">
-                                    <select name="role" style="padding: 4px; font-size: 12px;">
-                                        <option value="admin" {% if emp.role == 'admin' %}selected{% endif %}>Admin</option>
-                                        <option value="manager" {% if emp.role == 'manager' %}selected{% endif %}>Manager / CEO</option>
-                                        <option value="employee" {% if emp.role == 'employee' %}selected{% endif %}>Employee / User</option>
-                                    </select>
-                                    <button type="submit" class="btn" style="padding: 4px 8px; font-size: 11px;">Update</button>
-                                </form>
-                            </td>
+                            <td>{{ emp.role }}</td>
                             <td>
                                 {% if emp.email != session['user'] %}
                                     <a href="/delete_user/{{ emp.id }}" class="btn-danger" style="text-decoration: none; padding: 4px 8px; font-size: 12px; display: inline-block; text-align: center; width: auto;" onclick="return confirm('Delete this user?')">Delete</a>
@@ -737,8 +723,8 @@ def logout():
 
 @app.route('/add_product', methods=['POST'])
 def add_product():
-    if session.get('role') not in ['admin', 'manager']:
-        flash('Only Admin or Manager can add products!')
+    if session.get('role') != 'admin':
+        flash('Only Admin can add products!')
         return redirect(url_for('index'))
         
     name = request.form['name'].strip()
@@ -769,8 +755,8 @@ def add_product():
 
 @app.route('/quick_add_stock', methods=['POST'])
 def quick_add_stock():
-    if session.get('role') not in ['admin', 'manager']:
-        flash('Only Admin or Manager can update stock!')
+    if session.get('role') != 'admin':
+        flash('Only Admin can update stock!')
         return redirect(url_for('index'))
         
     product_id = request.form.get('product_id')
@@ -850,8 +836,8 @@ def delete_product(id):
 
 @app.route('/reports')
 def reports():
-    if session.get('role') not in ['admin', 'manager']:
-        flash('Access restricted to Admin or Manager only!')
+    if session.get('role') != 'admin':
+        flash('Access restricted to Admin only!')
         return redirect(url_for('index'))
         
     current_month_str = datetime.now().strftime('%Y-%m')
@@ -911,23 +897,22 @@ def reports():
 
 @app.route('/stock_in_history')
 def stock_in_history():
-    if session.get('role') not in ['admin', 'manager']:
-        flash('Access restricted to Admin or Manager only!')
+    if session.get('role') != 'admin':
+        flash('Access restricted to Admin only!')
         return redirect(url_for('index'))
     
-    current_month_str = datetime.now().strftime('%Y-%m')
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM stock_in_logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s ORDER BY timestamp DESC", (current_month_str,))
+    cursor.execute('SELECT * FROM stock_in_logs ORDER BY timestamp DESC')
     stock_in_logs = cursor.fetchall()
     cursor.close()
     conn.close()
     
-    return render_template_string(HTML_TEMPLATE, page='stock_in_history', stock_in_logs=stock_in_logs, active_tab='stock_in_history', current_month=current_month_str)
+    return render_template_string(HTML_TEMPLATE, page='stock_in_history', stock_in_logs=stock_in_logs, active_tab='stock_in_history')
 
 @app.route('/download_report_pdf')
 def download_report_pdf():
-    if session.get('role') not in ['admin', 'manager']:
+    if session.get('role') != 'admin':
         return redirect(url_for('index'))
     
     current_month_str = datetime.now().strftime('%Y-%m')
@@ -953,7 +938,7 @@ def download_report_pdf():
 
 @app.route('/download_official_invoice')
 def download_official_invoice():
-    if session.get('role') not in ['admin', 'manager']:
+    if session.get('role') != 'admin':
         return redirect(url_for('index'))
         
     current_month_str = datetime.now().strftime('%Y-%m')
@@ -1121,13 +1106,12 @@ def download_official_invoice():
 
 @app.route('/download_stock_in_invoice')
 def download_stock_in_invoice():
-    if session.get('role') not in ['admin', 'manager']:
+    if session.get('role') != 'admin':
         return redirect(url_for('index'))
         
-    current_month_str = datetime.now().strftime('%Y-%m')
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM stock_in_logs WHERE TO_CHAR(timestamp, 'YYYY-MM') = %s ORDER BY timestamp DESC", (current_month_str,))
+    cursor.execute('SELECT * FROM stock_in_logs ORDER BY timestamp DESC')
     stock_in_logs = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -1163,7 +1147,7 @@ def download_stock_in_invoice():
         idx += 1
         
     if not stock_in_logs:
-        rows_html = '<tr><td colspan="7" style="text-align: center; color: #6b7280;">No stock-in records found for this month.</td></tr>'
+        rows_html = '<tr><td colspan="7" style="text-align: center; color: #6b7280;">No stock-in records found.</td></tr>'
 
     invoice_html = f'''
     <!DOCTYPE html>
@@ -1203,7 +1187,6 @@ def download_stock_in_invoice():
                     <td>
                         <div class="invoice-title">STOCK-IN INVOICE REPORT</div>
                         <div style="font-size: 12px; color: #6b7280; text-align: right; margin-top: 5px;">
-                            Period: <b>{current_month_str}</b><br>
                             Date: {datetime.now().strftime('%Y-%m-%d')}
                         </div>
                     </td>
@@ -1212,7 +1195,7 @@ def download_stock_in_invoice():
 
             <table class="info-box">
                 <tr>
-                    <td><b>Report Type:</b> Incoming Stock / Inventory Purchases Log (Monthly)</td>
+                    <td><b>Report Type:</b> Incoming Stock / Inventory Purchases Log</td>
                     <td style="text-align: right;"><b>Authorized Administrator:</b> {session['user']}</td>
                 </tr>
             </table>
@@ -1250,7 +1233,7 @@ def download_stock_in_invoice():
             </table>
 
             <div style="margin-top: 30px; font-size: 12px; color: #4b5563; border-top: 1px solid #e5e7eb; padding-top: 10px;">
-                <b>Note:</b> This official document records all stock purchases and incoming items added to the inventory matrix for the active month.
+                <b>Note:</b> This official document records all stock purchases and incoming items added to the inventory matrix.
             </div>
 
             <div class="signature-section">
@@ -1267,13 +1250,13 @@ def download_stock_in_invoice():
 
 @app.route('/ai_advisor')
 def ai_advisor():
-    if session.get('role') not in ['admin', 'manager']:
+    if session.get('role') != 'admin':
         return redirect(url_for('index'))
     return render_template_string(HTML_TEMPLATE, page='ai_advisor', active_tab='ai_advisor')
 
 @app.route('/ask_ai', methods=['POST'])
 def ask_ai():
-    if session.get('role') not in ['admin', 'manager']:
+    if session.get('role') != 'admin':
         return redirect(url_for('index'))
     
     user_prompt = request.form['ai_prompt']
@@ -1322,22 +1305,6 @@ def employees():
     cursor.close()
     conn.close()
     return render_template_string(HTML_TEMPLATE, page='employees', employees=employees, active_tab='employees')
-
-@app.route('/update_user_role/<int:id>', methods=['POST'])
-def update_user_role(id):
-    if session.get('role') != 'admin':
-        flash('Unauthorized!')
-        return redirect(url_for('index'))
-    new_role = request.form.get('role')
-    if new_role in ['admin', 'manager', 'employee']:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute('UPDATE users SET role = %s WHERE id = %s', (new_role, id))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        flash('User role updated successfully!')
-    return redirect(url_for('employees'))
 
 @app.route('/delete_user/<int:id>')
 def delete_user(id):
