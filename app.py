@@ -152,6 +152,7 @@ HTML_TEMPLATE = '''
                 <a href="/" class="{% if active_tab == 'inventory' %}active{% endif %}">⚡ Stock & Nexus Search</a>
                 {% if session['role'] == 'admin' %}
                     <a href="/reports" class="{% if active_tab == 'reports' %}active{% endif %}">Reports & Financials</a>
+                    <a href="/stock_in_history" class="{% if active_tab == 'stock_in_history' %}active{% endif %}">📦 Stock In History</a>
                     <a href="/ai_advisor" class="{% if active_tab == 'ai_advisor' %}active{% endif %}">🤖 Gemini AI Advisor</a>
                     <a href="/employees" class="{% if active_tab == 'employees' %}active{% endif %}">Manage Employees</a>
                     <a href="/settings" class="{% if active_tab == 'settings' %}active{% endif %}">Admin Settings</a>
@@ -473,6 +474,38 @@ HTML_TEMPLATE = '''
                             <td><span style="color:#f87171; font-weight:bold;">-{{ log.quantity_deducted }}</span></td>
                             <td>৳{{ log.total_price }}</td>
                             <td>{{ log.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            {% elif page == 'stock_in_history' and session['role'] == 'admin' %}
+                <h3>📦 Comprehensive Stock In History Log</h3>
+                <p style="font-size: 13px; color: #94a3b8;">Detailed history of all stock items added, showing exact dates, quantities, and company/brand details.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Admin Operator</th>
+                            <th>Company & Product</th>
+                            <th>Size</th>
+                            <th>Qty Added</th>
+                            <th>Price / Unit</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s_log in stock_in_logs %}
+                        <tr>
+                            <td><b>{{ s_log.admin_email }}</b></td>
+                            <td>{{ s_log.brand }} - {{ s_log.product_name }}</td>
+                            <td><b>{{ s_log.size }}</b></td>
+                            <td style="color: #34d399; font-weight: bold;">+{{ s_log.quantity_added }} pcs</td>
+                            <td>৳{{ s_log.price_per_unit }}</td>
+                            <td>{{ s_log.timestamp }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #94a3b8;">No stock-in history records found.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -853,6 +886,21 @@ def reports():
                                   brand_reports=brand_reports,
                                   logs=logs, active_tab='reports', current_month=current_month_str)
 
+@app.route('/stock_in_history')
+def stock_in_history():
+    if session.get('role') != 'admin':
+        flash('Access restricted to Admin only!')
+        return redirect(url_for('index'))
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM stock_in_logs ORDER BY timestamp DESC')
+    stock_in_logs = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return render_template_string(HTML_TEMPLATE, page='stock_in_history', stock_in_logs=stock_in_logs, active_tab='stock_in_history')
+
 @app.route('/download_report_pdf')
 def download_report_pdf():
     if session.get('role') != 'admin':
@@ -888,7 +936,6 @@ def download_official_invoice():
     conn = get_db()
     cursor = conn.cursor()
     
-    # মাসিক বিক্রয় এবং স্টক-ইন ডেটা একসাথে বের করার জন্য কুয়েরি
     cursor.execute("""
         SELECT l.brand, l.product_name, l.size, 
                COALESCE(SUM(l.quantity_deducted), 0) as sold_qty, 
@@ -908,7 +955,6 @@ def download_official_invoice():
         sold_q = item['sold_qty']
         t_price = item['total_val']
         
-        # মোট কত কার্টন স্টক ইন হয়েছিল তা বের করা
         cursor.execute("""
             SELECT COALESCE(SUM(quantity_added), 0) as total_in 
             FROM stock_in_logs 
@@ -917,7 +963,6 @@ def download_official_invoice():
         in_res = cursor.fetchone()
         total_in_qty = in_res['total_in'] if in_res else 0
         
-        # বর্তমানে লাইভ স্টক টেবিলে কত কার্টন আছে তা বের করা
         cursor.execute("""
             SELECT COALESCE(quantity, 0) as current_q 
             FROM products 
@@ -1172,10 +1217,6 @@ def reset_database_completely():
     flash('Database and all reports have been completely cleared successfully!')
     return redirect(url_for('settings'))
 
-if __name__ == '__main__':
-    init_db()
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
 @app.route('/keep-alive')
 def keep_alive():
     try:
@@ -1187,3 +1228,8 @@ def keep_alive():
         return "Database and Render are active!", 200
     except Exception as e:
         return f"Error: {str(e)}", 500
+
+if __name__ == '__main__':
+    init_db()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
